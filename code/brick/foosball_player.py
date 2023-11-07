@@ -66,6 +66,11 @@ class FoosballPlayer:
         self.current_angles[2] += angles[2]
     
     def move_to_position(self, position: list):
+        """Move to position with inverse kinematics
+
+        Args:
+            position (list): x, y, z target position
+        """
         # TODO: Inverse Kinematics
         pass
     

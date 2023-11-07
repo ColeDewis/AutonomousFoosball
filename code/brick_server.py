@@ -9,8 +9,14 @@ from queue import Queue
 from utils.message_type import MessageType
 
 # This class handles the Server side of the comunication between the laptop and the brick.
-class Server:
+class BrickServer:
     def __init__(self, host, port):
+        """Initialize the server
+
+        Args:
+            host (str): host ip
+            port (int): ip port
+        """
        # setup server socket
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         # We need to use the ip address that shows up in ipconfig for the usb ethernet adapter that handles the comunication between the PC and the brick
@@ -64,11 +70,3 @@ class Server:
     def send_termination(self):
         """Sends a termination message to the client. This will cause the client to exit "cleanly", after stopping the motors."""
         self.cs.send("EXIT".encode("UTF-8"))
-
-host = "192.168.0.2"
-port = 9999
-server = Server(host, port)
-queue = Queue()
-
-while True:
-    time.sleep(10)
