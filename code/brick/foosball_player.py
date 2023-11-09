@@ -67,7 +67,6 @@ class FoosballPlayer:
         Args:
             angles (list): _description_
         """
-        # when running on ssh these motors are not attached to their correct outputs
         self.belt_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.belt_idx]))
         self.flick_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.flick_idx]))
         self.twist_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.twist_idx]))
