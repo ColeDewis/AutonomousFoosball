@@ -6,6 +6,9 @@
 
 import socket
 from foosball_player import FoosballPlayer
+
+import sys
+sys.path.append("..")
 from utils.util_funcs import debug_print
 
 class Client:

@@ -1,16 +1,18 @@
 import sys
 import math
 
-def deg2rad(angle: float):
-    """Converts degrees to radians
+
+def rad2deg(angle: float):
+    """Converts radians to degrees
 
     Args:
         angle (float): angle to convert
 
     Returns:
-        float: angle in radians
+        float: angle in degrees
     """
     return angle * (180 / math.pi)
+
 
 def debug_print(*args, **kwargs):
     """Print debug messages to stderr.
