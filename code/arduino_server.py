@@ -6,10 +6,16 @@ from utils.message_type import MessageType
 
 class ArduinoServer:
     """Server class for communicating with arduino clients."""
-    def __init__(self):
-        self.arduino = serial.Serial(port="COM6", baudrate=9600, timeout=None)
+    def __init__(self, port: str, baudrate: int):
+        """Initialize an arduino server
+
+        Args:
+            port (str): serial port, i.e. COM6
+            baudrate (int): baudrate to use for serial connection
+        """
+        self.arduino = serial.Serial(port=port, baudrate=baudrate, timeout=None)
         self.step_pos = 0
-        self.STEPS_PER_REVOLUTION
+        self.STEPS_PER_REVOLUTION = 200
     
     def send_angle(self, angle: float, type: MessageType):
         """Send a target to the arduino motor.

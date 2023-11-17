@@ -15,6 +15,7 @@ from utils.util_funcs import rad2deg
 
 
 class FoosballPlayer:
+    """Class to represent a Foosball Player running on an ev3 brick."""
     belt_idx = 0
     flick_idx = 1
     twist_idx = 2
@@ -56,10 +57,12 @@ class FoosballPlayer:
         Args:
             angles (list): list of angles to move
         """
-        self.belt_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.belt_idx] - self.belt_angle))
-        self.flick_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.flick_idx] - self.flick_angle))
-        self.twist_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.twist_idx] - self.twist_angle))
-
+        self.belt_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.belt_idx] - self.belt_angle), block=False)
+        self.flick_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.flick_idx] - self.flick_angle), block=False)
+        self.twist_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.twist_idx] - self.twist_angle), block=False)
+        self.belt_motor.wait_until_not_moving()
+        self.flick_motor.wait_until_not_moving()
+        self.twist_motor.wait_until_not_moving()
         
         self.belt_angle = angles[FoosballPlayer.belt_idx]
         self.flick_angle = angles[FoosballPlayer.flick_idx]
@@ -71,9 +74,12 @@ class FoosballPlayer:
         Args:
             angles (list): list of angles to move
         """
-        self.belt_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.belt_idx]))
-        self.flick_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.flick_idx]))
-        self.twist_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.twist_idx]))
+        self.belt_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.belt_idx]), block=False)
+        self.flick_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.flick_idx]), block=False)
+        self.twist_motor.on_for_degrees(SpeedPercent(10), rad2deg(angles[FoosballPlayer.twist_idx]), block=False)
+        self.belt_motor.wait_until_not_moving()
+        self.flick_motor.wait_until_not_moving()
+        self.twist_motor.wait_until_not_moving()
 
         self.belt_angle += angles[FoosballPlayer.belt_idx]
         self.flick_angle += angles[FoosballPlayer.flick_idx]
