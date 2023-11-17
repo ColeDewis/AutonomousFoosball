@@ -27,28 +27,6 @@ class BrickServer:
         serversocket.listen(5) 
         self.cs, addr = serversocket.accept()
         print ("Connected to: " + str(addr))
-
-    def send_angles(self, belt_angle: float, flick_angle: float, twist_angle: float, queue: Queue):
-        """Send angles to brick client
-
-        Args:
-            belt_angle (float): angle to turn belt motor
-            flick_angle (float): angle to turn flicking motor
-            twist_angle (float): angle to twist
-            queue (Queue): queue to store and return messages from client.
-        """
-        self.send_data(belt_angle, flick_angle, twist_angle, MessageType.ANGLES, queue)
-    
-    def send_position_target(self, x: float, y: float, z: float, queue: Queue):
-        """Send a position target to the brick client
-
-        Args:
-            x (float): x target
-            y (float): y target
-            z (float): z target
-            queue (Queue): queue to store and return messages from client
-        """
-        self.send_data(x, y, z, MessageType.POSITION, queue)
         
     def send_data(self, num1: float, num2: float, num3: float, type: str, queue: Queue):
         """Sends data to the brick client
