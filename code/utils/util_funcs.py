@@ -1,7 +1,6 @@
 import sys
 import math
 
-
 def rad2deg(angle: float):
     """Converts radians to degrees
 
