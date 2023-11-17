@@ -50,7 +50,7 @@ class WeightedMovingAverage:
         
     def add_point(self, point_value: list):
         """Add a point to the average. It will initially have
-           age of 1.
+           age of 0.
 
         Args:
             point_value (np.array[float]): value of the point.
@@ -67,9 +67,25 @@ class WeightedMovingAverage:
         """Increase the age of all points in the weighted moving average."""
         for point in self.points:
             point.age += 1
+    
+    def prune(self, age_threshold):
+        """Prunes the points, removing any at or above the given age_threshold
+
+        Args:
+            age_threshold (int): the threshold at which we consider a point to old
+                                and want to remove it.
+        """
+        self.points = [x for x in self.points if x.age < age_threshold]
             
     def output(self):
-        """Output the current value of the weighted moving average."""
+        """Output the current value of the weighted moving average.
+
+        Returns:
+            int: -1 if there are no points in the wma.
+            list: the current weighted average if any points exist.
+        """
+        if not self.points:
+            return -1
 
         weights = [self.decay_func(point.age) for point in self.points]
         weights = weights / np.sum(weights)
@@ -84,11 +100,16 @@ if __name__ == "__main__":
     
     wma2 = WeightedMovingAverage(TrustDecay, 2)
     wma2.add_point(np.array([1.0, 1.0]))
+    wma2.age_points()
     wma2.add_point(np.array([2.0, 2.0]))
-    
+
+    wma2.prune(2)
+    wma2.age_points()
+
     print(wma.output())
     print(wma2.output())
     print(wma2.output())
+    wma2.prune(2)
     print(wma2.output())
     
     
