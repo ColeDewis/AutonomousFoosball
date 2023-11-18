@@ -9,6 +9,7 @@ class States():
     SWINGING = "SWINGING"
     TRACKING = "TRACKING"
     IDLE = "IDLE"
+    DONE = "DONE"
 
 class Robot:
     """Class to represent the robotic system as a whole, and manage the actions the 
@@ -50,7 +51,10 @@ class Robot:
         elif self.state == States.SWINGING:
             # Swinging state - assumes we are at the necessary position to hit ball.
             self.__hit()
-            self.state = States.IDLE
+            self.state = States.DONE
+        elif self.state == States.DONE:
+            # just sit around doing nothing for now...
+            sleep(1)
     
     def __hit(self):
         """Hit a ball."""

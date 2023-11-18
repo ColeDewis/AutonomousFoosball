@@ -41,10 +41,10 @@ class ArduinoServer:
     
 
 if __name__ == "__main__":
-    server = ArduinoServer()
+    server = ArduinoServer("COM6", 9600)
     time.sleep(3)
     
-    server.send_angle(2 * np.pi)
+    server.send_angle(2 * np.pi, MessageType.RELATIVE)
     #while True:
     print(server.arduino.readline().decode().strip())
     
