@@ -9,6 +9,7 @@ bool hasTarget = false;
 void setup() {
   // Set maximum speed value for the stepper
   // 200 Steps/revolution by default
+  hasTarget = false;
   stepper1.setCurrentPosition(0);
   stepper1.setMaxSpeed(1000);
   Serial.begin(9600);
