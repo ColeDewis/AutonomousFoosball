@@ -1,5 +1,5 @@
 import numpy as np
-from decay_functions import WeightFunction, ExponentialDecay, TrustDecay
+from utils.decay_functions import WeightFunction, ExponentialDecay, TrustDecay
 
 class Entry:
     """Class for an entry in a WeightedMovingAverage."""
@@ -24,7 +24,7 @@ class Entry:
         Returns:
             float: the entry value times the given weight
         """
-        return self.value * other
+        return np.array(self.value) * other
 
 class WeightedMovingAverage:
     """Class to represent a weighted moving average, used for averaging
@@ -81,11 +81,11 @@ class WeightedMovingAverage:
         """Output the current value of the weighted moving average.
 
         Returns:
-            int: -1 if there are no points in the wma.
+            None: None if there are no points in the wma.
             list: the current weighted average if any points exist.
         """
         if not self.points:
-            return -1
+            return None
 
         weights = [self.decay_func(point.age) for point in self.points]
         weights = weights / np.sum(weights)
@@ -111,5 +111,4 @@ if __name__ == "__main__":
     print(wma2.output())
     wma2.prune(2)
     print(wma2.output())
-    
     

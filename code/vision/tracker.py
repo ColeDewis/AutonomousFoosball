@@ -49,7 +49,8 @@ class Tracker:
     def __init__(self, cam_index: int = 0):
         # TODO: update the trajectories once object tracking has been established
         # NOTE: potentially might have to just keep locations as points
-        # and then handle noise when updating trajectories
+        # and then handle noise when updating trajectories (depends how fast we
+        # update points and potentially how much we can skew weighted average)
         self.ball_location = WeightedMovingAverage(ExponentialDecay, 2)
         self.ball_trajectory = None
 
@@ -90,6 +91,10 @@ class Tracker:
 
         NOTE: we may be able to get away with updates every 5 frames or so, depending
         on how slow things run in practice
+
+        TODO: need to prune old points or else those lists will get massive
+        (see if we can add a cap to moving average so it will prune automatically
+        like a fixed size queue)
 
         Args:
             flag (threading.Event): a flag for telling us when to stop the video capture process
@@ -147,7 +152,7 @@ class Tracker:
 
         Returns:
             None: no ball detected
-            np.array: [x, y] coord of center of ball
+            list: [x, y] coord of center of ball
         """
         blurred = cv.medianBlur(frame, 11)
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
@@ -158,9 +163,6 @@ class Tracker:
         mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=1)
         # mask = cv.erode(mask, kernel, iterations=1)
         # mask = cv.dilate(mask, kernel, iterations=1)
-
-        # cv.imshow("ball mask", mask)
-        # cv.waitKey(20)
 
         # Mask the blurred image so that we only consider the areas with the desired colour
         masked_blurred = cv.bitwise_and(blurred,blurred, mask= mask)
@@ -175,15 +177,15 @@ class Tracker:
             min_dist = np.inf
             best = None
             prev = self.ball_location.output()
-            if prev != -1:
-                prev.append(BALL_RADIUS_PX)
-                prev = np.array(prev)
+            if prev is not None:
+                prev = np.append(prev, BALL_RADIUS_PX)
+
+            circles = np.squeeze(circles)
+            if circles.ndim == 1:
+                circles = [circles] # stupid bug fix
 
             for circ in circles: # circ = [x, y, rad]
-                circ = np.squeeze(circ) # opencv loves extra dimensions of size
-                print(f"current circle: {circ}")
-                print(f"previous circle: {prev}")
-                if prev == -1:
+                if prev is None:
                     # no detection to match so far, pick one with closest radius
                     diff = abs(circ[2] - BALL_RADIUS_PX)
                     if diff < min_dist:
@@ -193,7 +195,7 @@ class Tracker:
                     # we have previous detections, find best match according to
                     # distance from previous point (since likely very close still)
                     # and radius (using euclidean squared distance)
-                    dist = np.square(circ - prev)
+                    dist = np.sum(np.square(circ - prev))
                     if dist < min_dist:
                         min_dist = dist
                         best = circ
@@ -253,15 +255,15 @@ class Tracker:
         location = None
         if obj_id == Tracker.ball_id:
             ball_loc = self.ball_location.output()
-            if ball_loc != -1:
+            if ball_loc is not None:
                 location = self._img_to_world(*ball_loc)
         elif obj_id == Tracker.player1_id:
             player1_loc = self.ball_location.output()
-            if player1_loc != -1:
+            if player1_loc is not None:
                 location = self._img_to_world(*player1_loc)
         elif obj_id == Tracker.player2_id:
             player2_loc = self.ball_location.output()
-            if player2_loc != -1:
+            if player2_loc is not None:
                 location = self._img_to_world(*player2_loc)
         else:
             print("[WARNING] incorrect object id for location query")
@@ -292,5 +294,6 @@ if __name__ == "__main__":
             print(f"player2 is at: {tracker.get_object_location(Tracker.player2_id)}")
             time.sleep(2)
         tracker.stop_tracking()
-    except:
+    except Exception as e:
+        print(e)
         tracker.stop_tracking()
