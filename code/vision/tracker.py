@@ -1,3 +1,14 @@
+"""
+TODO
+- fix up any NOTE and TODO comments
+- clean up transform declaration at top of file
+- check with cole about using just pure points for locations and then handling
+noisy detections in trajectory estimation
+    - if u keep WMA for locations, make sure to prune or cap number of points
+- get better calibration results
+- refine hsv ranges
+"""
+
 import cv2 as cv
 import numpy as np
 import threading
@@ -28,6 +39,18 @@ RED_HIGH_MASK = (179, 255, 255)
 
 BALL_RADIUS_PX = 50 # pixels TODO: PROPERLY MEASURE THIS
 PLAYER_SIDE_LEN_PX = 100 # pixels TODO: PROPERLY MEASURE THIS
+
+# Pixel to centimeter conversion
+X_PX2CM = 36.1 / 416
+Y_PX2CM = 28.5 / 337
+
+# defining transforms (clean this up later)
+T1 = np.array([[1, 0, 0, 26.9], [0, 1, 0, 42], [0, 0, 1, 62.9], [0, 0, 0, 1]])
+R1 = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+R2 = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+# this last one is the one that takes us from scaled image coords to camera coords
+T2 = np.array([[1, 0, 0, 6.720675540436016036e+02 * X_PX2CM], [0, 1, 0, 3.655077871747401446e+02 * Y_PX2CM], [0, 0, 1, 0], [0, 0, 0, 1]])
+CAM2WORLD = T1 @ R1 @ R2 @ T2
 
 class Tracker:
     """class for handling object detection and tracking functionality
@@ -280,8 +303,8 @@ class Tracker:
         Returns:
             list: [x, y] in world frame (since we don't need z-coord)
         """
-        # TODO: add transform stuff here
-        pass
+        coords = CAM2WORLD @ np.transpose([u, v, 0, 1])
+        return list(np.squeeze(coords)[:2]) # NOTE: check this
 
 if __name__ == "__main__":
     # for testing
