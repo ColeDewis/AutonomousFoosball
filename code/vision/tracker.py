@@ -90,7 +90,7 @@ class Tracker:
 
         # set up the camera (should be fine to do this out here since the thread
         # only ever reads from the camera object)
-        self.vc = cv.VideoCapture(cam_index)
+        self.vc = cv.VideoCapture(cam_index, cv.CAP_DSHOW)
         self.vc.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
         self.vc.set(cv.CAP_PROP_FRAME_HEIGHT, 720)
 
