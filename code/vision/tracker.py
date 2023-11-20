@@ -7,6 +7,22 @@ noisy detections in trajectory estimation
     - if u keep WMA for locations, make sure to prune or cap number of points
 - get better calibration results
 - refine hsv ranges
+
+Notes:
+- there could potentially be issues detecting circles if I detect noise for
+long enough then the previous point will be closest to noise and not ball location
+getting us stuck detecting noise (remove all noise and should be good though)
+
+Ideas:
+- potentially try and base position estimations based on current point and
+trajectory estimation by timestepping trajectory and weighing the current point
+with the trajectory estimate
+    - for players (and potentially ball), when their velocity is 0 (or super low),
+    I should estimate position over time by just averaging point detections (like
+    what we did for lab 3). Could weigh points based on how far they are from
+    the average so far (farther = less weight) although regular average is
+    probably fine
+- can also try background subtraction + color detection
 """
 
 import cv2 as cv
@@ -37,7 +53,10 @@ RED_LOW_MASK = (155, 145, 0)
 RED_HIGH_MASK = (179, 255, 255)
 ########################################
 
-BALL_RADIUS_PX = 50 # pixels TODO: PROPERLY MEASURE THIS
+# ball is often ellipsified due to perspective, and measuring its major and minor
+# axes at two opposite diagonal corners of the arena I got like 58px to 72 px
+# so I'm just averaging the two for the radius checks in ball detection
+BALL_RADIUS_PX = 65
 PLAYER_SIDE_LEN_PX = 100 # pixels TODO: PROPERLY MEASURE THIS
 
 # Pixel to centimeter conversion
@@ -133,11 +152,18 @@ class Tracker:
             rval, frame = self.vc.read()
             if not rval:
                 break
+            start = time.time()
 
             # age previous locations
             self.ball_location.age_points()
             self.player1_location.age_points()
             self.player2_location.age_points()
+
+            # prune out old points (update this when doing new implementation)
+            # just storing 5 previous points for estimating current position
+            self.ball_location.prune(age_threshold=5)
+            self.player1_location.prune(age_threshold=5)
+            self.player2_location.prune(age_threshold=5)
 
             ball_location = self.detect_ball(frame)
             if ball_location is not None:
@@ -149,6 +175,8 @@ class Tracker:
             if player2_location is not None:
                 self.player2_location.add_point(player2_location)
 
+            print(f"full loop time: {time.time() - start}")
+
             # shows the original image with the detected objects drawn
             cv.imshow("Result", frame)
 
@@ -156,7 +184,7 @@ class Tracker:
             key = cv.waitKey(20)
             if key == ord('q'):
                 break
-        
+
         # cleanup
         self.vc.release()
         cv.destroyAllWindows()
@@ -182,17 +210,18 @@ class Tracker:
             None: no ball detected
             list: [x, y] coord of center of ball
         """
-        blurred = cv.medianBlur(frame, 11)
+        # blurred = cv.GaussianBlur(frame, (5, 5), 0)
+        # play with parameters if results are not good enough
+        blurred = cv.edgePreservingFilter(frame, cv.RECURS_FILTER, 40, 0.4)
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        # hsv = cv.cvtColor(blurred, cv.COLOR_BGR2HSV) # not sure if I should use blurred or not
 
-        # TODO: test various kernel sizes and iteration numbers
+        # mask based on red color and then use morph operations to clean mask
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(7,5))
         mask = cv.inRange(hsv, RED_LOW_MASK, RED_HIGH_MASK)
-        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=1)
-        # mask = cv.erode(mask, kernel, iterations=1)
-        # mask = cv.dilate(mask, kernel, iterations=1)
+        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
 
-        # Mask the blurred image so that we only consider the areas with the desired colour
+        # get image mask containing desired color
         masked_blurred = cv.bitwise_and(blurred,blurred, mask= mask)
         gray_mask = cv.cvtColor(masked_blurred, cv.COLOR_BGR2GRAY)
 
@@ -210,7 +239,7 @@ class Tracker:
 
             circles = np.squeeze(circles)
             if circles.ndim == 1:
-                circles = [circles] # stupid bug fix
+                circles = [circles] # stupid bug fix (for when just one circle)
 
             for circ in circles: # circ = [x, y, rad]
                 if prev is None:
@@ -239,8 +268,7 @@ class Tracker:
         NOTE: player1 is the right player in the image frame, and player2 is the
         left. Both players will be of the same color for simplicity in the code
 
-        TODO: finish square detection (or rectangle, whatever shape the colored
-        pieces are)
+        TODO: finish square detection
         
         Args:
             frame (np.array): image frame
@@ -250,20 +278,22 @@ class Tracker:
                     if one player or no players found, their list is replaced
                     by None
         """
-        # Uncomment for gaussian blur
-        #blurred = cv.GaussianBlur(frame, (11, 11), 0)
-        blurred = cv.medianBlur(frame, 11)
+        # blurred = cv.GaussianBlur(frame, (7, 7), 0)
+        blurred = cv.edgePreservingFilter(frame, cv.RECURS_FILTER, 40, 0.4)
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        # hsv = cv.cvtColor(blurred, cv.COLOR_BGR2HSV) # not sure if I should use blurred or not
 
         kernel = cv.getStructuringElement(cv.MORPH_RECT,(5, 5))
         mask = cv.inRange(hsv, BLUE_LOW_MASK, BLUE_HIGH_MASK)
         mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=1)
-        # mask = cv.erode(mask, np.ones((11, 11),np.uint8), iterations=2)
-        # mask = cv.dilate(mask, np.ones((11, 11),np.uint8), iterations=3)
 
-        # Mask the blurred image so that we only consider the areas with the desired colour
+        # get image mask containing desired color
         masked_blurred = cv.bitwise_and(blurred,blurred, mask= mask)
         gray_mask = cv.cvtColor(masked_blurred, cv.COLOR_BGR2GRAY)
+
+        # TODO: detect players
+        # IDEA: find what line the belt lies on and reject ones not close to
+        # it
 
         return None, None
     
