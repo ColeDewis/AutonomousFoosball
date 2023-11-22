@@ -20,7 +20,7 @@ class Client:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
         self.s.connect((host, port))                               
         
-    def pollData(self):
+    def poll_data(self):
         """Block until a message from the server is received. When the message is received it will be decoded and returned as a string.
 
         Returns:
@@ -31,11 +31,11 @@ class Client:
         debug_print("Data Received")
         return data
     
-    def sendDone(self):
+    def send_done(self):
         """Send a message telling ther server motor movement succeeded."""
         self.s.send("DONE".encode("UTF-8"))
 
-    def sendReset(self):
+    def send_reset(self):
         """Send a message to the server indicating there was an issue during movement."""
         self.s.send("RESET".encode("UTF-8"))
 
@@ -45,13 +45,13 @@ if __name__ == "__main__":
     client = Client(host, port)
     robot_player = FoosballPlayer()
     while True:
-        data = client.pollData()
+        data = client.poll_data()
         if data == "EXIT":
             robot_player.reset_to_home()
             break
 
         ret = robot_player.parse_data(data)
         if ret:
-            client.sendDone()
+            client.send_done()
         else:
-            client.sendReset()
+            client.send_reset()
