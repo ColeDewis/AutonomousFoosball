@@ -1,5 +1,9 @@
 import numpy as np
-from utils.decay_functions import WeightFunction, ExponentialDecay, TrustDecay
+
+if __name__ == "__main__":
+    from decay_functions import WeightFunction, ExponentialDecay, TrustDecay
+else:
+    from utils.decay_functions import WeightFunction, ExponentialDecay, TrustDecay
 
 class Entry:
     """Class for an entry in a WeightedMovingAverage."""
