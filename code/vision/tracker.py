@@ -1,18 +1,4 @@
 """
-TODO
-- fix up any NOTE and TODO comments
-- re-calculate pixel transforms and redo calibration with lower resolution.
-- redefine transform process to use full intrinsic matrix since focal length
-should give scale I think? (NOTE: check this out beforehand)
-OR just downscale the image before running pipeline and scale resulting pixel
-locations detected. will need to change transformation matrices below
-(just the image->cam one I think, and only if I do the former)
-- clean up transform declaration at top of file
-- get better calibration results
-- refine hsv ranges
-
-Notes:
-
 Ideas:
 - potentially try and base position estimations based on current point and
 trajectory estimation by timestepping trajectory and weighing the current point
@@ -59,27 +45,29 @@ RED_HIGH_MASK = (179, 255, 255)
 # ball is often ellipsified due to perspective, and measuring its major and minor
 # axes at two opposite diagonal corners of the arena I got like 58px to 72 px
 # so I'm just averaging the two for the radius checks in ball detection
-BALL_RADIUS_PX = 65 # TODO remeasure this with 640x360 image
-PLAYER_SIDE_LEN_PX = 100 # pixels TODO: PROPERLY MEASURE THIS
+BALL_RADIUS_PX = 65 / 2 # divide by two to get length in scaled image
+PLAYER_SIDE_LEN_PX = 60 / 2 # ditto (NOTE: change when we lower carriage)
 
-# Pixel to centimeter conversion # TODO redo this with new image size
+# Pixel to centimeter conversion
 X_PX2CM = 36.1 / 416
 Y_PX2CM = 28.5 / 337
 
-# Camera translation from world origin
+# Camera translation from world origin (in cm's)
 CX = 26.9
 CY = 42
 CZ = 62.9
 
-# TODO: add a rotation aspect as well since its slightly tilted
-
+# TODO: make sure rotation matrix for y is correct
+# NOTE: could throw all this camera info into a class and have it implement
+# the pixel to world coord transform
 # defining transforms (clean this up later)
 T1 = np.array([[1, 0, 0, CX], [0, 1, 0, CY], [0, 0, 1, CZ], [0, 0, 0, 1]])
 R1 = np.array([[0, 1, 0, 0], [-1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 R2 = np.array([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
+R3 = np.array([[np.cos(np.pi / 36), 0, np.sin(np.pi / 36), 0], [0, 1, 0, 0], [-np.sin(np.pi / 36), 0, np.cos(np.pi / 36), 0], [0, 0, 0, 1]])
 # this last one is the one that takes us from scaled image coords to camera coords
 PX2CAM = np.array([[X_PX2CM, 0, 0, -6.720675540436016036e+02 * X_PX2CM], [0, Y_PX2CM, 0, -3.655077871747401446e+02 * Y_PX2CM], [0, 0, 1, 0], [0, 0, 0, 1]])
-CAM2WORLD = T1 @ R1 @ R2 @ PX2CAM
+CAM2WORLD = T1 @ R1 @ R2 @ R3 @ PX2CAM
 
 class Tracker:
     """class for handling object detection and tracking functionality
@@ -98,7 +86,7 @@ class Tracker:
     player1_id = 1
     player2_id = 2
 
-    def __init__(self, cam_index: int = 0, img_w: int = 640, img_h: int = 360):
+    def __init__(self, cam_index: int = 0, img_w: int = 1280, img_h: int = 720):
         # TODO: build ball trajectory model class
         # Just using a single point for the ball, the ball trajectory model can
         # handle noisy estimates (i.e. don't add a point if it is too far from
@@ -118,6 +106,8 @@ class Tracker:
 
         # set up the camera (should be fine to do this out here since the thread
         # only ever reads from the camera object)
+        self.img_w = img_w
+        self.img_h = img_h
         self.vc = cv.VideoCapture(cam_index)
         self.vc.set(cv.CAP_PROP_FRAME_WIDTH, img_w)
         self.vc.set(cv.CAP_PROP_FRAME_HEIGHT, img_h)
@@ -154,8 +144,8 @@ class Tracker:
         # for whatever reason, if I have this as class state python deadlocks somehow
         # this lets us output a constant sized window for the user to see
         window_name = "Gameplay"
-        rsz_w, rsz_h = 1280, 720
         cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+        scale_factor = 2
 
         while not flag.is_set():
             # read in next frame
@@ -163,34 +153,38 @@ class Tracker:
             if not rval:
                 break
 
-            start = time.time()
+            # for saving compute time. Will cause rounding errors when converting
+            # coordinates back to original size but whatever
+            resized_res = (self.img_w // scale_factor, self.img_h // scale_factor)
+            resized_frame = cv.resize(frame, resized_res, interpolation=cv.INTER_AREA)
 
-            # age previous locations
+            # age previous locations and prune old points
             self.player1_location.age_points()
-            self.player2_location.age_points()
-
-            # prune out old points
             self.player1_location.prune(age_threshold=10)
+            self.player2_location.age_points()
             self.player2_location.prune(age_threshold=10)
 
             # blurred = cv.GaussianBlur(frame, (5, 5), 0)
-            blurred = cv.edgePreservingFilter(frame, cv.RECURS_FILTER, 40, 0.4)
+            blurred = cv.edgePreservingFilter(resized_frame, cv.RECURS_FILTER, 40, 0.4)
             hsv = cv.cvtColor(blurred, cv.COLOR_BGR2HSV)
 
-            self.ball_location = self.detect_ball(frame, hsv)
+            self.ball_location = self.detect_ball(resized_frame, hsv)
+            if self.ball_location is not None:
+                # scale back to original resolution pixels
+                self.ball_location = list(np.array(self.ball_location) * scale_factor)
             # TODO: add location update to trajectory model
 
-            player1_location, player2_location = self.detect_players(frame, hsv)
+            player1_location, player2_location = self.detect_players(resized_frame, hsv)
             if player1_location is not None:
-                self.player1_location.add_point(player1_location)
+                player1_scaled_loc = list(np.array(player1_location) * scale_factor)
+                self.player1_location.add_point(player1_scaled_loc)
             if player2_location is not None:
-                self.player2_location.add_point(player2_location)
-
-            print(f"full loop time: {time.time() - start}")
+                player2_scaled_loc = list(np.array(player2_location) * scale_factor)
+                self.player2_location.add_point(player2_scaled_loc)
 
             # shows the original image with the detected objects drawn
-            cv.imshow(window_name, frame)
-            cv.resizeWindow(window_name, rsz_w, rsz_h)
+            cv.imshow(window_name, resized_frame)
+            cv.resizeWindow(window_name, self.img_w, self.img_h)
 
             # check if q key is pressed
             key = cv.waitKey(10)
@@ -221,19 +215,17 @@ class Tracker:
 
         Returns:
             None: no ball detected
-            list: [x, y] coord of center of ball
+            list: [x, y, radius] coord of center of ball and radius
         """
         # mask based on red color and then use morph operations to clean mask
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(7,5))
         mask = cv.inRange(hsv, RED_LOW_MASK, RED_HIGH_MASK)
         mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
 
-        # # get image mask containing desired color
-        # masked_blurred = cv.bitwise_and(blurred,blurred, mask= mask)
-        # gray_mask = cv.cvtColor(masked_blurred, cv.COLOR_BGR2GRAY)
-
         # TODO: play with parameters to find best ones
-        circles = cv.HoughCircles(mask, cv.HOUGH_GRADIENT, 1.5, 300, param1=100, param2=20, minRadius=20, maxRadius=200)
+        # NOTE: can probably get rid of a lot of the checks below (just find one
+        # closest to trajectory estimate)
+        circles = cv.HoughCircles(mask, cv.HOUGH_GRADIENT, 1.5, 300, param1=100, param2=20, minRadius=10, maxRadius=50)
         if circles is None:
             return None # no circles found
         else:
@@ -263,9 +255,9 @@ class Tracker:
                         min_dist = dist
                         best = circ
 
-        cv.circle(frame, (int(best[0]), int(best[1])), int(best[2]), (255, 0, 0), 4)
+        cv.circle(frame, (int(best[0]), int(best[1])), int(best[2]), (255, 0, 0), 2)
 
-        return list(best[:2]) # just want x and y coords of center
+        return best[:2] # just want x and y
 
     def detect_players(self, frame: np.array, hsv: np.array) -> tuple | None:
         """uses hsv color space masking and basic image processing to find
@@ -281,7 +273,8 @@ class Tracker:
             hsv (np.array): image in hsv-space for color detection
 
         Returns:
-            tuple: the xy-coords of both player1 and player2 as ([x1, y1], [x2, y2])
+            tuple: the xy-coords of both player1 and player2 as
+                    ([x1_center, y1_center, w, h], [x2_center, y2_center, w, h])
                     if one player or no players found, their list is replaced
                     by None
         """
@@ -289,16 +282,16 @@ class Tracker:
 
         kernel = cv.getStructuringElement(cv.MORPH_RECT,(5, 5))
         mask = cv.inRange(hsv, BLUE_LOW_MASK, BLUE_HIGH_MASK)
-        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=1)
+        mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
 
-        # get image mask containing desired color
-        # masked_blurred = cv.bitwise_and(blurred,blurred, mask= mask)
-        # gray_mask = cv.cvtColor(masked_blurred, cv.COLOR_BGR2GRAY)
+        cv.imshow("player mask", mask)
+        cv.waitKey(10)
 
         # NOTE: update this once you have simple trajectory model for players
-        contours, _ = cv.findContours(mask, 1, 2)
+        contours, _ = cv.findContours(mask, 1, 2) # change these to the enum strings
         for cnt in contours:
             x1, y1 = cnt[0][0]
+            # NOTE: figure out what this does
             approx = cv.approxPolyDP(cnt, 0.01*cv.arcLength(cnt, True), True)
 
             if len(approx) == 4:
@@ -306,14 +299,14 @@ class Tracker:
                 center_x, center_y = x + w / 2, y + h / 2
                 ratio = float(w)/h
 
-                if ratio < 0.9 and ratio > 1.1:
+                if ratio < 0.8 and ratio > 1.2 or w * h < 100:
                     # not close enough to square, likely noise 
                     # NOTE: update this check to something related to square size
                     # and trajectory model once you have those measurements and
                     # code written
                     continue
                 
-                frame = cv.drawContours(frame, [cnt], -1, (0,255,255), 3)
+                frame = cv.drawContours(frame, [cnt], -1, (0,255,255), 2)
                 if center_x >= frame.shape[1] / 2:
                     # right player
                     player1_loc = [center_x, center_y]
@@ -361,7 +354,7 @@ class Tracker:
                 location = self._img_to_world(*player2_loc)
         else:
             print("[WARNING] incorrect object id for location query")
-        
+
         return location
         
     def _img_to_world(self, u: int, v: int) -> list:
@@ -379,7 +372,7 @@ class Tracker:
 
 if __name__ == "__main__":
     # for testing
-    tracker = Tracker(0)
+    tracker = Tracker(2)
     print("Tracker set up, object detection commencing ...")
     try:
         while tracker.thread.is_alive():
