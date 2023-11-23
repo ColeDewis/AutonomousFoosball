@@ -16,6 +16,7 @@ square detections (if any)
 
 import cv2 as cv
 import numpy as np
+import os
 import threading
 import time
 
@@ -104,11 +105,14 @@ class Tracker:
         self.player1_location = WeightedMovingAverage(ExponentialDecay, 2)
         self.player2_location = WeightedMovingAverage(ExponentialDecay, 2)
 
-        # set up the camera (should be fine to do this out here since the thread
-        # only ever reads from the camera object)
+        # set up the camera
         self.img_w = img_w
         self.img_h = img_h
-        self.vc = cv.VideoCapture(cam_index)
+        if os.name == "nt":
+            # for windows to be able to open the camera in a reasonable amount of time
+            self.vc = cv.VideoCapture(cam_index, cv.CAP_DSHOW)
+        else:
+            self.vc = cv.VideoCapture(cam_index)
         self.vc.set(cv.CAP_PROP_FRAME_WIDTH, img_w)
         self.vc.set(cv.CAP_PROP_FRAME_HEIGHT, img_h)
 
