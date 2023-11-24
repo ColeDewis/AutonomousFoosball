@@ -22,6 +22,9 @@ on the plane, when our player is not))
 - extract out transform code into its own module to lessen the tasks required
 of the tracker module (could make it a class or just a module that stores
 all the transforms, pixel scales, and the img_to_world function)
+- extract out detection code into its own class or module. The Tracker class
+should just be in charge of maintaining location state and dealing with camera
+initialization and tracking thread stuff
 
 ### Ball-Tracking To-Do's
 - make generic trajectory model that you can inherit from to build ball model

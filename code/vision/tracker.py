@@ -12,6 +12,9 @@ with the trajectory estimate
 - could build very simple trajectory models of players where I just fit a line
 to the points we query from it and then use that line as a way to filter out noisy
 square detections (if any)
+
+NOTE: may have to undistort image before doing anything else in the main loop
+(if I can get better calibration results, but that's an optimization week thing)
 """
 
 import cv2 as cv
@@ -157,16 +160,16 @@ class Tracker:
             if not rval:
                 break
 
-            # for saving compute time. Will cause rounding errors when converting
-            # coordinates back to original size but whatever
-            resized_res = (self.img_w // scale_factor, self.img_h // scale_factor)
-            resized_frame = cv.resize(frame, resized_res, interpolation=cv.INTER_AREA)
-
             # age previous locations and prune old points
             self.player1_location.age_points()
             self.player1_location.prune(age_threshold=10)
             self.player2_location.age_points()
             self.player2_location.prune(age_threshold=10)
+
+            # for saving compute time. Will cause rounding errors when converting
+            # coordinates back to original size but whatever
+            resized_res = (self.img_w // scale_factor, self.img_h // scale_factor)
+            resized_frame = cv.resize(frame, resized_res, interpolation=cv.INTER_AREA)
 
             # blurred = cv.GaussianBlur(frame, (5, 5), 0)
             blurred = cv.edgePreservingFilter(resized_frame, cv.RECURS_FILTER, 40, 0.4)
