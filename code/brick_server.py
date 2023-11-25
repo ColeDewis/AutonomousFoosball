@@ -4,10 +4,11 @@
 
 import socket
 from queue import Queue
+from messages.brick_message import brick_message
 
 class BrickServer:
     """This class handles the Server side of the comunication between the laptop and the brick."""
-    def __init__(self, host, port):
+    def __init__(self, left_host, port):
         """Initialize the server
 
         Args:
@@ -16,29 +17,36 @@ class BrickServer:
         """
         # setup server socket
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        #serversocket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # We need to use the ip address that shows up in ipconfig for the usb ethernet adapter
         # that handles the comunication between the PC and the brick
-        print("Setting up Server\nAddress: " + host + "\nPort: " + str(port))
+        print("Setting up Server\nAddress: " + left_host + "\nPort: " + str(port))
+        #print("Setting up Server\nAddress: " + left_host + "\nPort: " + str(port))
         
-        serversocket.bind((host, port))
+        serversocket.bind((left_host, port))
+        #serversocket2.bind((left_host, port))
+        
         # queue up to 5 requests
         serversocket.listen(5) 
+        #serversocket2.listen(5)
         self.cs, addr = serversocket.accept()
+        #self.cs2, addr2 = serversocket2.accept()
         self.queue = Queue()
-        print("Connected to: " + str(addr))
+        print(f"Connected to: {addr}")
+        #print(f"Connected to: {addr2}")
         
-    def send_data(self, num1: float, num2: float, num3: float, type: str):
+    def send_data(self, flick: float, twist: float, speed: int, type: str):
         """Sends data to the brick client
 
         Args:
-            num1 (float): first number (angle1 or x)
-            num2 (float): second num (angle2 or y)
-            num3 (float): third num (angle3 or z)
+            flick (float): flick angle
+            twist (float): twist angle
+            speed (int): motor target speed
             type (MessageType): type of message
         """
-        data = f"{str(num1)},{str(num2)},{str(num3)},{type}" 
-        print("Sending Data: (" + data + ") to robot.")
-        self.cs.send(data.encode("UTF-8"))
+        data = brick_message(flick, twist, speed, type)
+        print(f"Sending Data: ({data}) to brick.")
+        self.cs.send(data)
         # Waiting for the client (ev3 brick) to let the server know that it is done moving
         reply = self.cs.recv(128).decode("UTF-8")
         self.queue.put(reply)

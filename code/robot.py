@@ -1,14 +1,15 @@
 import numpy as np
-from time import sleep
+from time import sleep, perf_counter
 from brick_server import BrickServer
 from arduino_server import ArduinoServer
 from kinematics.kinematics import Kinematics
 from vision.tracker import Tracker
-from utils.message_type import MessageType
+from messages.message_type import MessageType
 
 class States():
     SWINGING = "SWINGING"
     TRACKING = "TRACKING"
+    MOVING = "MOVING"
     IDLE = "IDLE"
     DONE = "DONE"
 
@@ -40,11 +41,12 @@ class Robot:
         if self.state == States.IDLE:
             # Idle state for when we are waiting for an action.
             sleep(3)
+            print("STARTING TRACKING STATE")
             self.state = States.TRACKING
             
         elif self.state == States.TRACKING:
+            
             # TODO: trajectory analysis to know what angle to hit at
-            # TODO: use camera to get target position
             target_pos = self.camera_tracker.get_object_location(Tracker.ball_id)
             if target_pos is not None:
                 target_pos = target_pos[0]
@@ -52,18 +54,28 @@ class Robot:
                 target_belt_angle = self.kinematics.inverse_kinematics(target_pos, 0)
                 print(target_belt_angle)
                 
-                self.brick_serv.send_data(target_belt_angle, 0, np.pi/4, MessageType.ABSOLUTE)
+                self.arduino_serv.send_angle(target_belt_angle, MessageType.ABSOLUTE, ArduinoServer.RIGHT_STEPPER_ID)
+                self.brick_serv.send_data(np.pi/4, 0, 30, MessageType.ABSOLUTE)
+                print("STARTING MOVING STATE")
+                self.state = States.MOVING
+                
+        elif self.state == States.MOVING:
+            # TODO: generalize for 2 systems
+            if not self.arduino_serv.is_moving[ArduinoServer.RIGHT_STEPPER_ID]:
+                print("STARTING SWINGING STATE")
                 self.state = States.SWINGING
             
         elif self.state == States.SWINGING:
             # Swinging state - assumes we are at the necessary position to hit ball.
             self.__hit()
             self.state = States.DONE
+            print("STARTING DONE STATE")
+            
         elif self.state == States.DONE:
+            self.arduino_serv.send_reset()
             self.brick_serv.send_termination()
             sleep(1)
     
     def __hit(self):
         """Hit a ball."""
-        self.brick_serv.send_data(0, np.pi/4, 0, MessageType.RELATIVE)
-        self.brick_serv.send_data(0, -np.pi/4, 0, MessageType.RELATIVE)
+        self.brick_serv.send_data(-np.pi/4, 0, 80, MessageType.RELATIVE)
