@@ -39,11 +39,10 @@ class Client:
         self.s.send("RESET".encode("UTF-8"))
 
 if __name__ == "__main__":
-    host = "192.168.137.1"
-    host2 = "169.254.200.136"
-    host = "172.31.73.195"
+    right_brick_host = "192.168.137.1"
+    left_brick_host = "169.254.23.231"
     port = 9999
-    client = Client(host, port)
+    client = Client(right_brick_host, port)
     while True:
         data = client.pollData()
         debug_print(data)
