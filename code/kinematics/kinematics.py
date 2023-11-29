@@ -17,7 +17,8 @@ class Kinematics():
         self.d2 = 3
         
         # Translations from the world frame (corner) to the flick motor
-        self.tx1, self.ty1, self.tz1 = 5.5, 16, 14.5
+        # These also define the base frame of the robot.
+        self.tx1, self.ty1, self.tz1 = 5.5, 14, 14.5
         
     def inverse_kinematics(self, hit_position: float, hit_angle: float):
         """Given a necessary hit position and angle, returns the angles
