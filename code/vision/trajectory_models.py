@@ -59,13 +59,14 @@ class BallLineTrajectory(Trajectory):
     and renormalize
     """
 
-    def __init__(self, capacity: int = 10):
+    def __init__(self, img_scale: int = 2, capacity: int = 10):
         """initialize the ball trajectory with a bunch of null data and whatnot
 
         Args:
             capacity (int): the maximum number of previous positions to hold
             for building the line of best fit
         """
+        self.scale = img_scale
         self.capacity = capacity
         self.positions = []
         self.prev_time = time.time() # NOTE: I'm not sure if speed will actually be necessary
@@ -101,8 +102,9 @@ class BallLineTrajectory(Trajectory):
             dist = np.linalg.norm(np.array([x,y]) - np.array(self.prev_position), 2)
             self.speed = dist / self.prev_time
 
-        # update position queue
-        self.positions.append([x, y])
+        # -------------------- update position queue -------------------------
+        # scale back to original resolution pixels
+        self.positions.append(list(np.array([x, y]) * self.scale))
         if len(self.positions) > self.capacity:
             self.positions.pop(0)
         
@@ -135,10 +137,21 @@ class BallLineTrajectory(Trajectory):
             # ball is approximately stationary, no possible trajectory
             return img_to_world(*self.prev_position), None
 
-        # TODO: test parameters
         # fit line through previous detections and project last detection onto
         # line for getting our position estimate and direction estimate
         vx, vy, x0, y0 = cv.fitLine(np.array(self.positions), cv.DIST_L2, 0, 0.01, 0.01)
+        if self.prev_position[0] < self.positions[0][0]:
+            # if previous position's x is less than the first position in the
+            # trajectory queue, then we are going backwards
+            vx = -vx
+        if (
+            vy > 0 and self.prev_position[1] < self.positions[0][1]
+            or vy < 0 and self.prev_position[1] > self.positions[0][1]
+        ):
+            # couldn't pin down the behaviour of the vector returned from fitLine,
+            # so need to check if y direction is backwards (cause only sometimes its right)
+            vy = -vy
+
         p1 = [x0[0], y0[0]]
         p2 = [x0[0] + vx[0], y0[0] + vy[0]]
         pos_estimate = list(closest_point(self.prev_position, p1, p2))
@@ -146,10 +159,7 @@ class BallLineTrajectory(Trajectory):
         # image to world is the same as transforming a point
         unit_dir_pt = np.array(pos_estimate) + np.array([vx[0], vy[0]])
 
-        # TODO: check if I need to flip the direction
-
         # convert x,y and x + vx, y + vy to world coordinates, and then get unit vector in world
-        # TODO: check why these seem so off
         world_pos = img_to_world(*pos_estimate)
         world_unit_dir_pt = img_to_world(*unit_dir_pt)
         world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
@@ -158,18 +168,18 @@ class BallLineTrajectory(Trajectory):
         if frame is not None:
             # draw trajectory stuff onto frame for debugging
             for pos in self.positions:
-                cv.circle(frame, (int(pos[0]), int(pos[1])), 3, (255, 0, 0), 2)
-            cv.circle(frame, (int(pos_estimate[0]), int(pos_estimate[1])), 3, (0, 255, 0), 2)
+                cv.circle(frame, (int(pos[0] / self.scale), int(pos[1] / self.scale)), 3, (255, 0, 0), 2)
+            cv.circle(frame, (int(pos_estimate[0] / self.scale), int(pos_estimate[1] / self.scale)), 3, (0, 255, 0), 2)
             cv.arrowedLine(
                 frame,
-                (int(pos_estimate[0] - 100 * vx[0]), int(pos_estimate[1] - 100 * vy[0])),
-                (int(pos_estimate[0] + 100 * vx[0]), int(pos_estimate[1] + 100 * vy[0])),
+                (int((pos_estimate[0] - 100 * vx[0]) / self.scale), int((pos_estimate[1] - 100 * vy[0]) // self.scale)),
+                (int((pos_estimate[0] + 100 * vx[0]) / self.scale), int((pos_estimate[1] + 100 * vy[0]) // self.scale)),
                 (255,0,0),
                 2
             )
 
         # returning everything as lists right now, could change to np arrays later
-        return list(world_pos), list(world_traj)
+        return world_pos, world_traj
 
     def __stationary_check(self, threshold: float = 5.0) -> bool:
         """checks to see if the ball is basically stationary so we don't try
@@ -191,11 +201,6 @@ class BallLineTrajectory(Trajectory):
     # TODO: put this in detection module with prev_position as an argument
     def __find_optimal_circle(self, circles: np.array) -> list:
         # find the closest matched circle in case multiple are detected
-        # NOTE: don't think I need bug fix below anymore since handled in detect.py
-        # circles = np.squeeze(circles)
-        # if circles.ndim == 1:
-        #     circles = [circles] # stupid bug fix (for when just one circle)
-
         min_dist = np.inf
         for circ in circles: # circ = [x, y, rad]
             if self.prev_position is None:
@@ -207,7 +212,7 @@ class BallLineTrajectory(Trajectory):
             else:
                 # we have previous detections, find best match according to
                 # distance from previous point (since likely very close still)
-                dist = np.sum(np.square(circ[:2] - self.prev_position))
+                dist = np.sum(np.square(circ[:2] - np.array(self.prev_position)))
                 if dist < min_dist:
                     min_dist = dist
                     best = circ
@@ -215,23 +220,6 @@ class BallLineTrajectory(Trajectory):
         return best
 
 if __name__ == "__main__":
-    # # testing
-    # img = np.zeros((360, 640, 3), dtype=np.uint8)
-
-    # x = np.arange(1, 6, 1)
-    # y = x * 2 + 1
-    # positions = np.array([(u, v) for u, v in zip(x, y)])
-    # differences = np.diff(np.array(positions), axis=0)
-    # print(np.sum(differences, axis=0))
-    # print(np.mean(np.sum(differences, axis=0)))
-    # print(img.shape[0])
-    # vx, vy, x0, y0 = cv.fitLine(positions, cv.DIST_L2, 0, 0.01, 0.01)
-    # print(list(closest_point([0, 2], [x0[0], y0[0]], [x0[0] + vx[0], y0[0] + vy[0]])))
-
-    # cv.line(img, (int(x0[0] - 1000 * vx[0]), int(y0[0] - 1000 * vy[0])), (int(x0[0] + 1000 * vx[0]), int(y0[0] + 1000 * vy[0])), (255,0,0), 2)
-    # cv.imshow("line", img)
-    # cv.waitKey(0)
-    # cv.destroyAllWindows()
     ######################### testing ##########################
     import os
 
@@ -254,7 +242,7 @@ if __name__ == "__main__":
         cv.namedWindow(window_name, cv.WINDOW_NORMAL)
         scale_factor = 2
 
-        ball_traj = BallLineTrajectory()
+        ball_traj = BallLineTrajectory(img_scale=scale_factor, capacity=10)
 
         while True:
             # read in next frame
