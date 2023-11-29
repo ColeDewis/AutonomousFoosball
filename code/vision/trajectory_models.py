@@ -4,14 +4,6 @@ as all models implementing the interface
 The Trajectory classes should be in charge of holding the current position (or
 estimated one) of an object, as well as the estimated trajectory of it
 
-TODO: use cv.arrowedLine() to check which direction the unit vector is always
-facing. Would be sick if it always went towards the last point
-
-NOTE: for line of best fit trajectories, use cv.fitLine to get the unit vector
-describing the direction of the line, and then we can get the angle between
-that and the y-axis of our arena using the dot product between our direction
-unit vector and the vector [0, 1]
-
 NOTE: for player trajectories, don't build a line or anything, literally just
 return player position cause that's all we really need
 """
@@ -59,7 +51,7 @@ class BallLineTrajectory(Trajectory):
     and renormalize
     """
 
-    def __init__(self, img_scale: int = 2, capacity: int = 10):
+    def __init__(self, img_scale, capacity: int = 10):
         """initialize the ball trajectory with a bunch of null data and whatnot
 
         Args:
@@ -113,10 +105,8 @@ class BallLineTrajectory(Trajectory):
             cv.circle(frame, (int(x), int(y)), int(r), (255, 0, 0), 2)
 
     def get_trajectory(self, frame: np.array = None) -> tuple:
-        """Query the trajectory estimate of the tracked object
-
-        TODO: refresh the trajectory when we hit a wall
-        TODO: FIX THE RETURN WORLD COORDINATES, THEY ARE WRONG
+        """Query the trajectory estimate of the tracked object. Gives the latest
+        positions estimate and the direction vector in world coordinates
         
         Args:
             frame (np.array): frame for drawing trajectory on (optional)
@@ -133,9 +123,13 @@ class BallLineTrajectory(Trajectory):
             else:
                 return None, None
         
-        if self.__stationary_check():
+        if self.__is_stationary():
             # ball is approximately stationary, no possible trajectory
             return img_to_world(*self.prev_position), None
+        
+        if self.__did_wall_bounce():
+            # ball bounced off wall, clear old positions and take two newest ones
+            self.positions = self.positions[-2:]
 
         # fit line through previous detections and project last detection onto
         # line for getting our position estimate and direction estimate
@@ -155,11 +149,14 @@ class BallLineTrajectory(Trajectory):
         p1 = [x0[0], y0[0]]
         p2 = [x0[0] + vx[0], y0[0] + vy[0]]
         pos_estimate = list(closest_point(self.prev_position, p1, p2))
+
         # NOTE: doing this because I'm not sure if transforming a vector from
         # image to world is the same as transforming a point
         unit_dir_pt = np.array(pos_estimate) + np.array([vx[0], vy[0]])
 
         # convert x,y and x + vx, y + vy to world coordinates, and then get unit vector in world
+        # NOTE: update this to just use homogeneous representation of direction in
+        # img_to_world instead of all these extra step
         world_pos = img_to_world(*pos_estimate)
         world_unit_dir_pt = img_to_world(*unit_dir_pt)
         world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
@@ -181,7 +178,25 @@ class BallLineTrajectory(Trajectory):
         # returning everything as lists right now, could change to np arrays later
         return world_pos, world_traj
 
-    def __stationary_check(self, threshold: float = 5.0) -> bool:
+    def __did_wall_bounce(self) -> bool:
+        """Checks if the ball hit the wall by comparing the y-differences of the
+        second half of the positions to the first (since storing in pixel coords)
+
+        NOTE: assuming positions has at least two points in it
+        """
+        if len(self.positions) == 2:
+            return False # no way to reliably tell in this scenario
+        
+        mid = self.positions[int(len(self.positions) / 2)]
+        after_y = self.positions[-1][1] - mid[1]
+        before_y = mid[1] - self.positions[0][1]
+        if after_y * before_y < 0:
+            # just checking if they have different signs
+            return True
+        else:
+            return False
+
+    def __is_stationary(self, threshold: float = 5.0) -> bool:
         """checks to see if the ball is basically stationary so we don't try
         and estimate a trajectory from its previous points
         
@@ -198,7 +213,6 @@ class BallLineTrajectory(Trajectory):
         differences = np.diff(np.array(self.positions), axis=0)
         return np.absolute(np.mean(np.sum(differences, axis=0))) < threshold
 
-    # TODO: put this in detection module with prev_position as an argument
     def __find_optimal_circle(self, circles: np.array) -> list:
         # find the closest matched circle in case multiple are detected
         min_dist = np.inf

@@ -37,11 +37,14 @@ R3 = np.array([[np.cos(np.pi / 36), 0, np.sin(np.pi / 36), 0], [0, 1, 0, 0], [-n
 PX2CAM = np.array([[X_PX2CM, 0, 0, -6.720675540436016036e+02 * X_PX2CM], [0, Y_PX2CM, 0, -3.655077871747401446e+02 * Y_PX2CM], [0, 0, 1, 0], [0, 0, 0, 1]])
 CAM2WORLD = T1 @ R1 @ R2 @ R3 @ PX2CAM
 
-def img_to_world(u: int, v: int) -> list:
+def img_to_world(u: int, v: int, is_vec: bool = False) -> list:
     """finds the world coordinate of a uv-coord from the image frame
 
     TODO: update this so we can handle players being closer to camera (i.e. add
     a z value instead of 0 in the transpose maybe?)
+
+    TODO: update this to have proper transformations, I don't think I have this
+    fully right
     
     Args:
         u (int): u-coord (x) of pixel
@@ -50,5 +53,8 @@ def img_to_world(u: int, v: int) -> list:
     Returns:
         list: [x, y] in world frame (since we don't need z-coord)
     """
-    coords = CAM2WORLD @ np.transpose([u, v, 0, 1])
+    if is_vec:
+        coords = CAM2WORLD @ np.transpose([u, v, 0, 0])
+    else:
+        coords = CAM2WORLD @ np.transpose([u, v, 0, 1])
     return list(np.squeeze(coords)[:2])

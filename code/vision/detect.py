@@ -36,7 +36,6 @@ def detect_circles(hsv: np.array) -> list | None:
     mask = cv.inRange(hsv, RED_LOW_MASK, RED_HIGH_MASK)
     mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
 
-    # TODO: play with parameters to find best ones
     circles = cv.HoughCircles(mask, cv.HOUGH_GRADIENT, 1.5, 300, param1=100, param2=20, minRadius=10, maxRadius=50)
     if circles is not None:
         circles = np.squeeze(circles)
@@ -73,7 +72,7 @@ def detect_rectangles(hsv: np.array) -> list | None:
 if __name__ == "__main__":
     ######################### testing ##########################
     img_w, img_h = 1280, 720
-    cam_index = 0
+    cam_index = 2
     if os.name == "nt":
         # for windows to be able to open the camera in a reasonable amount of time
         vc = cv.VideoCapture(cam_index, cv.CAP_DSHOW)
