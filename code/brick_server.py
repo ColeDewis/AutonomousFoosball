@@ -4,46 +4,60 @@
 
 import socket
 from queue import Queue
+from messages.brick_message import brick_message
+from utils.side import Side
 
 class BrickServer:
     """This class handles the Server side of the comunication between the laptop and the brick."""
-    def __init__(self, host, port):
+    def __init__(self, left_host: str, right_host: str, port: int):
         """Initialize the server
 
         Args:
-            host (str): host ip
+            left_host (str): host ip for left brick
+            right_host (str): host ip for right brick
             port (int): ip port
         """
         # setup server socket
-        serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        rightsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        #leftsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # We need to use the ip address that shows up in ipconfig for the usb ethernet adapter
         # that handles the comunication between the PC and the brick
-        print("Setting up Server\nAddress: " + host + "\nPort: " + str(port))
+        #print("Setting up left side Server\nAddress: " + left_host + "\nPort: " + str(port))
+        print("Setting up right side Server\nAddress: " + right_host + "\nPort: " + str(port))
         
-        serversocket.bind((host, port))
+        rightsocket.bind((right_host, port))
+        #leftsocket.bind((left_host, port))
+        
         # queue up to 5 requests
-        serversocket.listen(5) 
-        self.cs, addr = serversocket.accept()
+        rightsocket.listen(5) 
+        #leftsocket.listen(5)
+        self.r_conn, right_addr = rightsocket.accept()
+        #self.l_conn, left_addr = leftsocket.accept()
+        #self.conn_dict = {Side.LEFT: self.l_conn, Side.RIGHT: self.r_conn}
+        self.conn_dict = {Side.LEFT: 0, Side.RIGHT: self.r_conn}
         self.queue = Queue()
-        print("Connected to: " + str(addr))
+        print(f"Connected to: {right_addr}")
+        #print(f"Connected to: {left_addr}")
         
-    def send_data(self, num1: float, num2: float, num3: float, type: str):
+    def send_data(self, flick: float, twist: float, speed: int, type: str, side: str):
         """Sends data to the brick client
 
         Args:
-            num1 (float): first number (angle1 or x)
-            num2 (float): second num (angle2 or y)
-            num3 (float): third num (angle3 or z)
+            flick (float): flick angle
+            twist (float): twist angle
+            speed (int): motor target speed
             type (MessageType): type of message
+            side (Side): side to send the message to
         """
-        data = f"{str(num1)},{str(num2)},{str(num3)},{type}" 
-        print("Sending Data: (" + data + ") to robot.")
-        self.cs.send(data.encode("UTF-8"))
+        data = brick_message(flick, twist, speed, type)
+        print(f"Sending Data: ({data}) to brick.")
+        self.conn_dict[side].send(data)
         # Waiting for the client (ev3 brick) to let the server know that it is done moving
-        reply = self.cs.recv(128).decode("UTF-8")
-        self.queue.put(reply)
+        self.conn_dict[side].recv(128).decode("UTF-8")
+        # self.queue.put(reply)
 
     def send_termination(self):
         """Sends a termination message to the client. This will cause the client 
            to exit "cleanly", after stopping the motors."""
-        self.cs.send("EXIT".encode("UTF-8"))
+        self.r_conn.send("EXIT".encode("UTF-8"))
+        self.l_conn.send("EXIT".encode("UTF-8"))
