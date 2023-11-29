@@ -160,7 +160,7 @@ class BallLineTrajectory(Trajectory):
         world_pos = img_to_world(*pos_estimate)
         world_unit_dir_pt = img_to_world(*unit_dir_pt)
         world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
-        world_traj = world_traj / np.linalg.norm(world_traj) # normalize to unit
+        world_traj = list(world_traj / np.linalg.norm(world_traj)) # normalize to unit
 
         if frame is not None:
             # draw trajectory stuff onto frame for debugging
