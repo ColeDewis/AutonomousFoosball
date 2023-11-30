@@ -1,10 +1,10 @@
-"""Module for basic shape detectors. These should solely focus on detecting the
-necessary shapes in the image. The trajectory model can worry about filtering
-detections based on its own information about its estimate of the objects"""
+"""Module for basic shape detectors."""
 
 import cv2 as cv
 import numpy as np
 import os
+
+from cam_info import BALL_RADIUS_PX
 
 #####HSV Colour Ranges#################
 # Blue Player Range
@@ -43,6 +43,34 @@ def detect_circles(hsv: np.array) -> list | None:
             circles = [list(circles)]
 
     return circles
+
+def find_optimal_circle(circles: np.array, prev_pos: np.array = None) -> list:
+    """finds the closest matched circle in case multiple are detected
+    
+    Args:
+        circles (np.array): array of all detected circles
+        prev_pos (np.array): [x, y] coord of previous ball detection
+    
+    Returns:
+        list: [x, y] coords of best matched circle
+    """
+    min_dist = np.inf
+    for circ in circles: # circ = [x, y, rad]
+        if prev_pos is None:
+            # no detection to match so far, pick one with closest radius
+            diff = abs(circ[2] - BALL_RADIUS_PX)
+            if diff < min_dist:
+                min_dist = diff
+                best = circ
+        else:
+            # we have previous detections, find best match according to
+            # distance from previous point (since likely very close still)
+            dist = np.sum(np.square(circ[:2] - prev_pos))
+            if dist < min_dist:
+                min_dist = dist
+                best = circ
+
+    return list(best)
 
 def detect_rectangles(hsv: np.array) -> list | None:
     """uses hsv color space masking and basic image processing to find
