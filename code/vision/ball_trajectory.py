@@ -30,13 +30,16 @@ class BallTrajectory:
         self.capacity = capacity
         self.px_positions = [] # just using regular list of numpy arrays for easier mutability
 
+        # last detected circle
+        self.detected_circ = None
+
         # position and direction estimates
         self.px_pos_estimate = None
         self.px_dir_estimate = None
 
-        # for getting instantaneous speed in pixel/s
-        self.prev_time = time.time()
-        self.px_speed = None
+        # # for getting instantaneous speed in pixel/s
+        # self.prev_time = time.time()
+        # self.px_speed = None
 
     @property
     def position(self) -> list | None:
@@ -50,16 +53,21 @@ class BallTrajectory:
     def direction(self) -> list | None:
         """Returns the direction estimate of the ball in world frame"""
         if self.px_dir_estimate is not None:
-            # TODO: check that this works
-            return img_to_world(*self.px_dir_estimate, is_vec=True)
+            # convert x,y and x + vx, y + vy to world coordinates
+            # and then get unit vector in world
+            unit_dir_pt = self.px_pos_estimate + self.px_dir_estimate
+            world_pos = self.position
+            world_unit_dir_pt = img_to_world(*(unit_dir_pt * self.img_scale))
+            world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
+            return list(world_traj / np.linalg.norm(world_traj)) # normalize to unit
         else:
             return None
 
-    @property
-    def speed(self) -> float | None:
-        """Returns the instantaneous speed of the ball in cm/s"""
-        if self.px_speed is not None:
-            return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
+    # @property
+    # def speed(self) -> float | None:
+    #     """Returns the instantaneous speed of the ball in cm/s"""
+    #     if self.px_speed is not None:
+    #         return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
 
     def step(self, frame: np.array):
         """step the trajectory forward in time. This will call detection methods
@@ -79,28 +87,25 @@ class BallTrajectory:
                 self.px_positions.pop(0)
             return
 
-        # update time interval for speed calcs
-        self.prev_time = time.time() - self.prev_time
+        # # update time interval for speed calcs
+        # self.prev_time = time.time() - self.prev_time
 
         if len(self.px_positions) != 0:
             # find optimal circle detection and do instantaneous speed update
-            x, y, r = find_optimal_circle(circles, self.px_positions[-1])
-            dist = np.linalg.norm(np.array([x, y]) - self.px_positions[-1], 2)
-            self.px_speed = dist / self.prev_time
+            self.detected_circ = np.array(find_optimal_circle(circles, self.px_positions[-1]))
+            # dist = np.linalg.norm(self.detected_circ[:2] - self.px_positions[-1], 2)
+            # self.px_speed = dist / self.prev_time
         else:
             # no previous points for optimal circle or speed calculations
-            x, y, r = find_optimal_circle(circles)
+            self.detected_circ = np.array(find_optimal_circle(circles))
 
         # update position queue
-        self.px_positions.append(np.array([x, y]))
+        self.px_positions.append(self.detected_circ[:2])
         if len(self.px_positions) > self.capacity:
             self.px_positions.pop(0)
 
         # updates all trajectory related state of the class
         self.__update_trajectory()
-
-        cv.circle(frame, (int(x), int(y)), int(r), (255, 0, 0), 2)
-        self.__draw_trajectory(frame)
 
     def __update_trajectory(self) -> tuple:
         """updates the trajectory with the latest ball detection
@@ -118,7 +123,7 @@ class BallTrajectory:
             self.px_dir_estimate = None
             return
         
-        if self.__check_bounce():
+        if self.__changed_direction():
             # ball bounced off wall, take two newest points for new trajectory
             self.px_positions = self.px_positions[-2:]
 
@@ -142,68 +147,51 @@ class BallTrajectory:
         self.px_pos_estimate = np.array(list(closest_point(list(self.px_positions[-1]), p1, p2)))
         self.px_dir_estimate = np.array([vx[0], vy[0]])
 
-        # TODO: COMPARE THIS METHOD BELOW WITH THE HOMOGENEOUS 0 METHOD TO SEE
-        # IF THEY RETURN THE SAME WORLD VECTOR
-        # -------------------------------------------------------------------- #
-        # # NOTE: doing this because I'm not sure if transforming a vector from
-        # # image to world is the same as transforming a point
-        # unit_dir_pt = np.array(pos_estimate) + np.array([vx[0], vy[0]])
+    def __changed_direction(self) -> bool:
+        """Checks to see for abrupt changes in direction"""
+        if len(self.px_positions) <= 4:
+            return False # hard to reliably tell in this scenario
 
-        # # convert x,y and x + vx, y + vy to world coordinates, and then get unit vector in world
-        # # NOTE: update this to just use homogeneous representation of direction in
-        # # img_to_world instead of all these extra step
-        # world_pos = img_to_world(*pos_estimate)
-        # world_unit_dir_pt = img_to_world(*unit_dir_pt)
-        # world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
-        # world_traj = list(world_traj / np.linalg.norm(world_traj)) # normalize to unit
-
-    def __check_bounce(self) -> bool:
-        """Checks if the ball hit the wall by comparing the y-differences of the
-        second half of the positions to the first (since storing in pixel coords)
-        """
-        if len(self.px_positions) == 2:
-            return False # no way to reliably tell in this scenario
-        
-        mid = self.px_positions[int(len(self.px_positions) / 2)]
-        after_y = self.px_positions[-1][1] - mid[1]
-        before_y = mid[1] - self.px_positions[0][1]
-        if after_y * before_y < 0:
+        change_pt = self.px_positions[len(self.px_positions) - 3]
+        after = self.px_positions[-1] - change_pt
+        before = change_pt - self.px_positions[0]
+        if after[0] * before[0] < 0 or after[1] * before[1] < 0:
             # just checking if they have different signs
             return True
         else:
             return False
 
-    def __is_stationary(self, threshold: float = 5.0) -> bool:
+    def __is_stationary(self, n: int = 5, threshold: float = 5.0) -> bool:
         """checks to see if the ball is basically stationary so we don't try
-        and estimate a trajectory from its previous points
-        
+        and estimate a trajectory from its previous points.
+
+        It does so by looking at the mean euclidean distance between the last
+        n points and seeing if it's under the threshold (this is distance
+        in pixels btw)
+
         Args:
             threshold (float): threshold for checking if all previous points are
                                 close enough to assume ball is stationary
         """
+        total_pts = len(self.px_positions)
+
         if self.px_positions is None:
             return True # no points yet, assume stationary
 
-        # check if all points have been too close to build an accurate model
-        # currently a pretty jank way of checking, could update to just be
-        # if max euclidean distance between any two points is < threshold
-        differences = np.diff(np.array(self.px_positions), axis=0)
-        return np.absolute(np.mean(np.sum(differences, axis=0))) < threshold
+        num_points = n if total_pts > n else total_pts
+        distances = np.zeros((num_points, num_points))
 
-    def __draw_trajectory(self, frame: np.array):
-            """helper for drawing trajectory stuff on the image"""
-            # draw previous true points
-            for pos in self.px_positions:
-                cv.circle(frame, pos.astype(int), 3, (255, 0, 0), 2)
+        for i in range(total_pts - num_points, total_pts):
+            for j in range(total_pts - num_points, total_pts):
+                idx1 = i - (total_pts - num_points)
+                idx2 = j - (total_pts - num_points)
+                distances[idx1, idx2] = np.sqrt(np.sum((self.px_positions[i] - self.px_positions[j])**2))
+        
+        # Calculate the mean distance (times 2 since the matrix will double the
+        # number of points we consider since its symmetric)
+        mean_distance = np.sum(distances) / (2 * num_points)
 
-            # draw position estimate
-            cv.circle(frame, self.px_pos_estimate.astype(int), 3, (0, 255, 0), 2)
-
-            # draw direction vector
-            if self.px_dir_estimate is not None:
-                start_pt = (self.px_pos_estimate - 100 * self.px_dir_estimate).astype(int)
-                end_pt = (self.px_pos_estimate + 100 * self.px_dir_estimate).astype(int)
-                cv.arrowedLine(frame, start_pt, end_pt, (255,0,0), 2)
+        return mean_distance < threshold
 
 if __name__ == "__main__":
     ######################### testing ##########################
@@ -224,8 +212,6 @@ if __name__ == "__main__":
         flag, _ = vc.read()
     
     if flag:
-        window_name = "Testing"
-        cv.namedWindow(window_name, cv.WINDOW_NORMAL)
         scale_factor = 2
 
         ball_traj = BallTrajectory(img_scale=scale_factor, capacity=10)
@@ -242,11 +228,7 @@ if __name__ == "__main__":
             ball_traj.step(resized_frame)
             print(f"Position Estimate: {ball_traj.position}")
             print(f"Direction Estimate: {ball_traj.direction}")
-            print(f"Instantaneous Speed Estimate: {ball_traj.speed}")
-    
-            # shows the original image with the detected objects drawn
-            cv.imshow(window_name, resized_frame)
-            cv.resizeWindow(window_name, img_w, img_h)
+            # print(f"Instantaneous Speed Estimate: {ball_traj.speed}")
 
             # check if q key is pressed
             key = cv.waitKey(10)
