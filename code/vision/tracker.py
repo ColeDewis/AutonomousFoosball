@@ -1,8 +1,3 @@
-"""
-NOTE: may have to undistort image before doing anything else in the main loop
-(if I can get better calibration results, but that's an optimization week thing)
-"""
-
 import cv2 as cv
 import numpy as np
 import os
@@ -19,6 +14,7 @@ from utils.weighted_moving_average import WeightedMovingAverage
 sys.path.remove(str(_parent_dir))
 
 from ball_trajectory import BallTrajectory
+from cam_info import DIST_COEF, CAM_MTX
 
 
 class Tracker:
@@ -76,6 +72,8 @@ class Tracker:
             rval, self.frame = self.vc.read()
             if not rval:
                 flag.set() # should stop other thread
+
+            # self.frame = cv.undistort(frame, CAM_MTX, DIST_COEF)
 
     def track_objects(self, flag: threading.Event):
         """handles detecting and tracking the ball via the BallTrajectory class.
