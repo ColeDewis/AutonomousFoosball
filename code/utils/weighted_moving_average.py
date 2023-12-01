@@ -17,7 +17,7 @@ class Entry:
         self.value = value
         self.age = 0
     
-    def __mul__(self, other):
+    def __mul__(self, other) -> float:
         """Overloads the multiplication value for an entry.
         
         We ONLY ever multiply an Entry by its weight, so other
@@ -87,7 +87,7 @@ class WeightedMovingAverage:
         """
         self.points = [x for x in self.points if x.age < age_threshold]
             
-    def output(self):
+    def output(self) -> list | None:
         """Output the current value of the weighted moving average.
 
         Returns:

@@ -26,12 +26,15 @@ class ArduinoServer:
         self.step_pos = {Side.LEFT: 0, Side.RIGHT: 0}
         self.side_to_id = {Side.LEFT: self.LEFT_STEPPER_ID, Side.RIGHT: self.RIGHT_STEPPER_ID}
         self.is_moving = {Side.LEFT: False, Side.RIGHT: False}
+        wait_thread = threading.Thread(target=self.__wait_for_response)
+        wait_thread.start()
     
-    def send_angle(self, angle: float, type: MessageType, side: Side):
+    def send_angle(self, angle: float, speed: int, type: MessageType, side: Side):
         """Send a target to the arduino motor.
 
         Args:
             angle (float): angle to move nema motor.
+            speed (int): speed to use, to be multiplied by 10. Should be from 1-13.
             type (MessageType): whether to send relative or absolute
             side (Side): the side to send the command to
         """
@@ -47,36 +50,31 @@ class ArduinoServer:
             raise ValueError("Invalid message type")
         
         stepper_id = self.side_to_id[side]
-        message = serial_message(stepper_id, target)
+        message = serial_message(stepper_id, speed, target)
         self.arduino.write(message)
         self.is_moving[side] = True
         print("wrote to serial: ", message)
-        
-        wait_thread = threading.Thread(target=self.__wait_for_response, args=(side,))
-        wait_thread.start()
     
-    def __wait_for_response(self, side: str):
-        """Asynchronously wait for a "done" response from the stepper
-
-        Args:
-            side (Side): side to wait for a "done" message from
-        """
-        while self.is_moving[side]:
+    def __wait_for_response(self):
+        """Asynchronously wait for a "done" response from the stepper."""
+        while True:
             retmsg = self.arduino.read(1)
-            print(retmsg)
-            if int.from_bytes(retmsg) == self.side_to_id[side]:
-                self.is_moving[side] = False
+            if int.from_bytes(retmsg) == self.LEFT_STEPPER_ID:
+                self.is_moving[Side.LEFT] = False
+            elif int.from_bytes(retmsg) == self.RIGHT_STEPPER_ID:
+                self.is_moving[Side.RIGHT] = False
         
     def send_reset(self):
         """Send a message telling the arduino to reset ALL motors."""
-        message = serial_message(0, 0)
+        message = serial_message(0, 0, 0) 
         print("wrote to serial: ", message)
         self.arduino.write(message)
 
 if __name__ == "__main__":
     server = ArduinoServer("COM6", 115200)
     time.sleep(3)
-    server.send_angle(68.4615, MessageType.ABSOLUTE, 2)
+    server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
+    server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.LEFT)
     while True:
         retmsg = server.arduino.read(1)
         print(retmsg)

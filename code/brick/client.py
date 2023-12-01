@@ -41,9 +41,9 @@ class Client:
 
 if __name__ == "__main__":
     host = "192.168.137.1"
-    host2 = "169.254.200.136"
+    host2 = "169.254.24.231"
     port = 9999
-    client = Client(host, port)
+    client = Client(host2, port)
     robot_player = FoosballPlayer()
     while True:
         data = client.poll_data()

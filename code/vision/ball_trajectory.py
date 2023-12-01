@@ -2,9 +2,19 @@ import time
 import cv2 as cv
 import numpy as np
 
-from cam_info import img_to_world, X_PX2CM, Y_PX2CM
-from detect import detect_circles, find_optimal_circle
-from point_projection import closest_point
+if __name__ == "__main__":
+    from cam_info import img_to_world, X_PX2CM, Y_PX2CM
+    from detect import detect_circles, find_optimal_circle
+    from point_projection import closest_point
+else:
+    from pathlib import Path
+    import sys
+    _parent_dir = Path(__file__).parent.parent.resolve()
+    sys.path.insert(0, str(_parent_dir))
+    from vision.cam_info import img_to_world, X_PX2CM, Y_PX2CM
+    from vision.detect import detect_circles, find_optimal_circle
+    from vision.point_projection import closest_point
+    sys.path.remove(str(_parent_dir))
 
 class BallTrajectory:
     """basic best fit line trajectory model for the ball. It will hold a queue

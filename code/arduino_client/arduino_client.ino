@@ -12,6 +12,8 @@ AccelStepper leftStepper(1, 3, 4);   // (STEP PIN=3, DIR PIN=4)
 AccelStepper rightStepper(1, 2, 5);  // (STEP PIN=2, DIR PIN=5)
 int leftCurrentTargetPosition = 0;
 int rightCurrentTargetPosition = 0;
+int leftCurrentSpeed = 0;
+int rightCurrentSpeed = 0;
 bool leftHasTarget = false;
 bool rightHasTarget = false;
 bool reset = false;
@@ -22,9 +24,9 @@ void setup() {
   leftHasTarget = false;
   rightHasTarget = false;
   leftStepper.setCurrentPosition(0);
-  leftStepper.setMaxSpeed(1000);
+  leftStepper.setMaxSpeed(1300);
   rightStepper.setCurrentPosition(0);
-  rightStepper.setMaxSpeed(1000);
+  rightStepper.setMaxSpeed(1300);
   Serial.begin(115200);
 }
 
@@ -52,7 +54,9 @@ void loop() {
     {
       char buf[3];
       Serial.readBytes(buf, 3);
-      int sign = buf[0];
+      int mask = (1 << 7); // mask: 1000 0000
+      int sign = (buf[0] & mask) > 0; 
+      uint8_t speed = (buf[0] & (~mask)); // ~mask: - 0111 1111
 
       // reconstruct the step target
       uint8_t a = buf[1];
@@ -68,33 +72,37 @@ void loop() {
       if (motorId == LEFT_STEPPER_ID) 
       {
         leftCurrentTargetPosition = target;
+        leftCurrentSpeed = 100 * speed;
         leftHasTarget = true;
       } 
       else if (motorId == RIGHT_STEPPER_ID) 
       {
         rightCurrentTargetPosition = target;
+        rightCurrentSpeed = 100 * speed;
         rightHasTarget = true;
       }
     }
   } 
-  else if (leftHasTarget) 
+  
+  if (leftHasTarget) 
   {
     leftStepper.moveTo(leftCurrentTargetPosition);
-    leftStepper.setSpeed(1000);
+    leftStepper.setSpeed(leftCurrentSpeed);
     leftStepper.runSpeedToPosition();
 
     // once we are at the target position, stop moving
     if (leftStepper.currentPosition() == leftCurrentTargetPosition) {
-      leftHasTarget = false;
+      leftHasTarget = false;  
       Serial.write(LEFT_STEPPER_ID);
     }
   } 
-  else if (rightHasTarget) 
+  
+  if (rightHasTarget) 
   {
     rightStepper.moveTo(rightCurrentTargetPosition);
-    rightStepper.setSpeed(1000);
+    rightStepper.setSpeed(rightCurrentSpeed);
     rightStepper.runSpeedToPosition();
-
+    //Serial.write(rightStepper.currentPosition());
     // once we are at the target position, stop moving
     if (rightStepper.currentPosition() == rightCurrentTargetPosition) {
       rightHasTarget = false;

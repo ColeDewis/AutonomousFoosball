@@ -8,6 +8,10 @@ import numpy as np
 import os
 import threading
 import time
+if __name__ == "__main__":
+    from ball_trajectory import BallTrajectory
+else:   
+    from vision.ball_trajectory import BallTrajectory
 
 # scuffed way of importing from same level package since ".." wouldn't work
 from pathlib import Path
@@ -17,9 +21,6 @@ sys.path.insert(0, str(_parent_dir))
 from utils.decay_functions import ExponentialDecay
 from utils.weighted_moving_average import WeightedMovingAverage
 sys.path.remove(str(_parent_dir))
-
-from ball_trajectory import BallTrajectory
-
 
 class Tracker:
     """class for handling object detection and tracking functionality"""
