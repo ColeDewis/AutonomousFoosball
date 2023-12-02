@@ -15,22 +15,22 @@ class Trajectory:
         # Calculate the time it takes to hit the right wall (x > 48 cm)
         t_x_right = (48 - self.initial_position[0]) / self.direction_vector[0]
 
-        # Check if the collision time is positive, return the positive one
+        # Check if the collision time is positive, return the positive one and wall_hit information
         if t_x_left > 0:
-            
-            return t_x_left
+            return t_x_left, "left"
         elif t_x_right > 0:
-            
-            return t_x_right
+            return t_x_right, "right"
         else:
-            return print("invalid direction vector")
-        
-      
+            print("invalid direction vector")
+            return None, None
 
     def check_goal_or_collision(self):
         # Get time to goal line and wall collision
         t_goal = self.time_to_goal_line()
-        t_collision = self.time_to_wall_collision()
+        t_collision, wall_hit = self.time_to_wall_collision()
+
+        if t_collision is None or wall_hit is None:
+            return
 
         # Compare times and decide whether it's a goal or collision
         if t_goal < t_collision:
@@ -40,10 +40,10 @@ class Trajectory:
             return x_goal
         else:
             # Collision with wall
-            print("Collision with wall!")
+            print(f"Collision with {wall_hit} wall!")
 
             # Assume ideal collision and update position and direction vector
-            new_x = 4 if t_collision == t_x_left else 48
+            new_x = 4 if wall_hit == "left" else 48
             new_y = self.initial_position[1] + self.direction_vector[1] * t_collision
             new_direction_vector = (-self.direction_vector[0], self.direction_vector[1])
 
@@ -54,9 +54,8 @@ class Trajectory:
             # Recalculate time to goal and wall collision after collision
             return self.check_goal_or_collision()
 
-
 # Example usage:
-direction_vector = (1, 1)  # Replace with actual direction vector
+direction_vector = (0.0001, 1)  # Replace with actual direction vector
 initial_position = (16, 18.5)  # Replace with actual initial position
 
 trajectory_instance = Trajectory(direction_vector, initial_position)
