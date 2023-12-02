@@ -1,66 +1,64 @@
-#working to improve this and clean it
-
-import math
-import numpy as np
-
 class Trajectory:
-    def __init__(self, x0, y0, goal_range, angle_range=(-45, 45), v=1.0):
-        self.x0 = x0
-        self.y0 = y0
-        self.goal_range = goal_range
-        self.angle_range = angle_range
-        self.v = v
+    def __init__(self, direction_vector, initial_position):
+        self.direction_vector = direction_vector
+        self.initial_position = initial_position
 
-    def update_position(self, vx, vy, t):
-        x = self.x0 + vx * t
-        y = self.y0 + vy * t
-        return x, y
+    def time_to_goal_line(self):
+        # Calculate the time it takes to hit the goal line (y = 63.5)
+        t_goal = (63.5 - self.initial_position[1]) / self.direction_vector[1]
+        return t_goal
 
-    def ideal_collision(self, vx, vy, normal):
-        # Ideal collision reflection formula
-        dot = vx * normal[0] + vy * normal[1]
-        vx -= 2 * dot * normal[0]
-        vy -= 2 * dot * normal[1]
-        return vx, vy
+    def time_to_wall_collision(self):
+        # Calculate the time it takes to hit the left wall (x < 4 cm)
+        t_x_left = (4 - self.initial_position[0]) / self.direction_vector[0]
 
-    def find_best_angle(self):
-        best_angle = None
-        min_time = float('inf')
+        # Calculate the time it takes to hit the right wall (x > 48 cm)
+        t_x_right = (48 - self.initial_position[0]) / self.direction_vector[0]
 
-        for angle in range(self.angle_range[0], self.angle_range[1] + 1):
-            rad_angle = math.radians(angle)
-            direction_vector = np.array([np.cos(rad_angle), np.sin(rad_angle)])
+        # Check if the collision time is positive, return the positive one
+        if t_x_left > 0:
             
-            # Calculate velocities based on direction vector
-            velocity = self.v
-            vx = velocity * direction_vector[0]
-            vy = velocity * direction_vector[1]
+            return t_x_left
+        elif t_x_right > 0:
+            
+            return t_x_right
+        else:
+            return print("invalid direction vector")
+        
+      
 
-            time = 0
-            while True:
-                x, y = self.update_position(vx, vy, time)
+    def check_goal_or_collision(self):
+        # Get time to goal line and wall collision
+        t_goal = self.time_to_goal_line()
+        t_collision = self.time_to_wall_collision()
 
-                # Check if the ball hits the sides of the table
-                if y < 2 or y > 48:  # Assuming side collisions less than 2cm and more than 48cm
-                    normal = np.array([1, 0]) if x < 2 else np.array([-1, 0])
-                    vx, vy = self.ideal_collision(vx, vy, normal)
-                
-                time += 0.1  # Increment time for simulation
-                
-                # Check if the ball reached the goal (considering a small margin)
-                if self.goal_range[0] < x < self.goal_range[1]:
-                    if time < min_time:
-                        min_time = time
-                        best_angle = angle
-                    break  # Exit the loop once the ball reaches the goal
+        # Compare times and decide whether it's a goal or collision
+        if t_goal < t_collision:
+            # Goal reached, break out and return x value for this t
+            x_goal = self.initial_position[0] + self.direction_vector[0] * t_goal
+            print("Goal!")
+            return x_goal
+        else:
+            # Collision with wall
+            print("Collision with wall!")
 
-        return best_angle, min_time
+            # Assume ideal collision and update position and direction vector
+            new_x = 4 if t_collision == t_x_left else 48
+            new_y = self.initial_position[1] + self.direction_vector[1] * t_collision
+            new_direction_vector = (-self.direction_vector[0], self.direction_vector[1])
 
-# Example usage
-x0, y0 = 17, 25
-goal_range = (15, 63.5)  # Assuming the goal is on the y-axis between coordinates 15 and 63.5
+            # Update state after collision
+            self.initial_position = (new_x, new_y)
+            self.direction_vector = new_direction_vector
 
-trajectory = Trajectory(x0, y0, goal_range)
-best_angle, min_time = trajectory.find_best_angle()
+            # Recalculate time to goal and wall collision after collision
+            return self.check_goal_or_collision()
 
-print(f"Best Angle: {best_angle} degrees, Time to Goal: {min_time} seconds")
+
+# Example usage:
+direction_vector = (1, 1)  # Replace with actual direction vector
+initial_position = (16, 18.5)  # Replace with actual initial position
+
+trajectory_instance = Trajectory(direction_vector, initial_position)
+x_value = trajectory_instance.check_goal_or_collision()
+print(f"Final x value: {x_value}")
