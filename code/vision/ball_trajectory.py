@@ -37,9 +37,12 @@ class BallTrajectory:
         self.px_pos_estimate = None
         self.px_dir_estimate = None
 
-        # # for getting instantaneous speed in pixel/s
-        # self.prev_time = time.time()
-        # self.px_speed = None
+        # flag for checking abrupt changes in directions
+        self.abrupt_change = False
+
+        # for getting instantaneous speed in pixel/s
+        self.prev_time = time.time()
+        self.px_speed = None
 
     @property
     def position(self) -> list | None:
@@ -52,6 +55,9 @@ class BallTrajectory:
     @property
     def direction(self) -> list | None:
         """Returns the direction estimate of the ball in world frame"""
+        if self.abrupt_change:
+            self.abrupt_change = False
+
         if self.px_dir_estimate is not None:
             # convert x,y and x + vx, y + vy to world coordinates
             # and then get unit vector in world
@@ -63,11 +69,11 @@ class BallTrajectory:
         else:
             return None
 
-    # @property
-    # def speed(self) -> float | None:
-    #     """Returns the instantaneous speed of the ball in cm/s"""
-    #     if self.px_speed is not None:
-    #         return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
+    @property
+    def speed(self) -> float | None:
+        """Returns the instantaneous speed of the ball in cm/s"""
+        if self.px_speed is not None:
+            return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
 
     def step(self, frame: np.array):
         """step the trajectory forward in time. This will call detection methods
@@ -87,14 +93,14 @@ class BallTrajectory:
                 self.px_positions.pop(0)
             return
 
-        # # update time interval for speed calcs
-        # self.prev_time = time.time() - self.prev_time
+        # update time interval for speed calcs
+        self.prev_time = time.time() - self.prev_time
 
         if len(self.px_positions) != 0:
             # find optimal circle detection and do instantaneous speed update
             self.detected_circ = np.array(find_optimal_circle(circles, self.px_positions[-1]))
-            # dist = np.linalg.norm(self.detected_circ[:2] - self.px_positions[-1], 2)
-            # self.px_speed = dist / self.prev_time
+            dist = np.linalg.norm(self.detected_circ[:2] - self.px_positions[-1], 2)
+            self.px_speed = dist / self.prev_time
         else:
             # no previous points for optimal circle or speed calculations
             self.detected_circ = np.array(find_optimal_circle(circles))
@@ -117,8 +123,7 @@ class BallTrajectory:
         we enter this function
         """
         if len(self.px_positions) < 2 or self.__is_stationary():
-            # cannot reliably build trajectory estimate, just use last detected
-            # position for position estimate
+            # cannot reliably build trajectory estimate in this case
             self.px_pos_estimate = self.px_positions[-1]
             self.px_dir_estimate = None
             return
@@ -126,6 +131,7 @@ class BallTrajectory:
         if self.__changed_direction():
             # ball bounced off wall, take two newest points for new trajectory
             self.px_positions = self.px_positions[-2:]
+            self.abrupt_change = True
 
         # fit line through previous detections and project last detection onto
         # line for getting our position estimate and direction estimate
