@@ -44,7 +44,7 @@ def detect_circles(hsv: np.array) -> list | None:
 
     return circles
 
-def find_optimal_circle(circles: np.array, prev_pos: np.array = None) -> list:
+def find_optimal_circle(circles: np.array, prev_pos: np.array = None, img_scale: int = 2) -> list:
     """finds the closest matched circle in case multiple are detected
     
     Args:
@@ -58,7 +58,7 @@ def find_optimal_circle(circles: np.array, prev_pos: np.array = None) -> list:
     for circ in circles: # circ = [x, y, rad]
         if prev_pos is None:
             # no detection to match so far, pick one with closest radius
-            diff = abs(circ[2] - BALL_RADIUS_PX)
+            diff = abs(circ[2] - BALL_RADIUS_PX / img_scale)
             if diff < min_dist:
                 min_dist = diff
                 best = circ
