@@ -48,8 +48,7 @@ class BrickServer:
             side (Side): side to send the message to
         """
         data = brick_message(flick, twist, speed, type)
-        print(data)
-        print(f"Sending Data: ({data}) to brick.")
+        #print(f"Sending Data: ({data}) to brick.")
         self.conn_dict[side].send(data)
         # Waiting for the client (ev3 brick) to let the server know that it is done moving
         self.conn_dict[side].recv(128).decode("UTF-8")

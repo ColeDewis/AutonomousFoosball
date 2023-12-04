@@ -53,7 +53,7 @@ class ArduinoServer:
         message = serial_message(stepper_id, speed, target)
         self.arduino.write(message)
         self.is_moving[side] = True
-        print("wrote to serial: ", message)
+        #print("wrote to serial: ", message)
     
     def __wait_for_response(self):
         """Asynchronously wait for a "done" response from the stepper."""
@@ -73,7 +73,7 @@ class ArduinoServer:
 if __name__ == "__main__":
     server = ArduinoServer("COM6", 115200)
     time.sleep(3)
-    server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
+    #server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
     server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.LEFT)
     while True:
         retmsg = server.arduino.read(1)

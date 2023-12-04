@@ -13,8 +13,12 @@ def run_robot(robot: Robot):
     Args:
         robot (Robot): robot object to run continuously.
     """
+    last = time.perf_counter()
     while True:
         robot.run()
+        if time.perf_counter() - last > 0.1:
+            print(f"{robot.side}, {robot.state}")
+            last = time.perf_counter()
 
 if __name__ == "__main__":
     right_brick_host = "192.168.137.1"
@@ -30,10 +34,9 @@ if __name__ == "__main__":
     # TODO: evaluate thread-safety of brickserver/arduinoserver/tracker
     right_robot_thread = threading.Thread(target=run_robot, args=(right_robot,))
     left_robot_thread = threading.Thread(target=run_robot, args=(left_robot,))
+    
+    # Keyboard input is used to start the game
+    input()
     right_robot_thread.start()
     left_robot_thread.start()
-  
-    # time.sleep(2)
-    # brick_server.send_data(math.pi/4, math.pi/4, 20, MessageType.RELATIVE, Side.LEFT)
-    # brick_server.send_data(math.pi/4, math.pi/4, 20, MessageType.RELATIVE, Side.RIGHT)
     

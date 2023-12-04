@@ -198,10 +198,10 @@ class Kinematics():
         )     
         
 if __name__ == "__main__":
-    kin = Kinematics(Side.LEFT)
+    #kin = Kinematics(Side.LEFT)
     kin2 = Kinematics(Side.RIGHT)
     #print(kin.forward_kinematics(0, -np.pi/4, 0))
-    print(kin2.forward_kinematics(0, 0, 0))
-    print(kin.inverse_kinematics(25.0, np.pi/4))
-    print(kin2.inverse_kinematics(25.0, np.pi/4))
+    #print(kin2.forward_kinematics(0, 0, 0))
+    #print(kin.inverse_kinematics(25.0, np.pi/4))
+    print(kin2.inverse_kinematics(32.0, -np.pi/4))
     #print(kin.inverse_kinematics(12.0, 0))

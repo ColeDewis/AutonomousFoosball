@@ -22,5 +22,3 @@ def serial_message(motor_id: int, speed: int, target: int) -> bytearray:
     targetbytes = (abs(target)).to_bytes(2)
     packet += targetbytes
     return packet
-
-print(serial_message(2, 10, 1500))
