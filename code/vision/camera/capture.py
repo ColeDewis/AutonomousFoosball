@@ -30,6 +30,7 @@ while True:
     key = cv2.waitKey(10)
     if key == ord('c'):
         fname = str(img_path) + f"/{count}_{img_res[1]}x{img_res[0]}" + ".png"
+        # fname = str(img_path) + f"/test" + ".png"
         cv2.imwrite(fname, img)
         count += 1
     if key == ord('q'):
