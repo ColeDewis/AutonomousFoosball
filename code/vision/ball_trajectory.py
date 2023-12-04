@@ -2,7 +2,7 @@ import time
 import cv2 as cv
 import numpy as np
 
-from cam_info import img_to_world, X_PX2CM, Y_PX2CM
+from camera.transforms import img_to_world, AVG_PX2CM
 from detect import detect_circles, find_optimal_circle
 from point_projection import closest_point
 
@@ -73,7 +73,7 @@ class BallTrajectory:
     def speed(self) -> float | None:
         """Returns the instantaneous speed of the ball in cm/s"""
         if self.px_speed is not None:
-            return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
+            return self.px_speed * AVG_PX2CM # avg for now
 
     def step(self, frame: np.array):
         """step the trajectory forward in time. This will call detection methods

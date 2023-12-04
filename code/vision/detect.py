@@ -4,7 +4,7 @@ import cv2 as cv
 import numpy as np
 import os
 
-from cam_info import BALL_RADIUS_PX
+from camera.transforms import BALL_RADIUS_PX
 
 #####HSV Colour Ranges#################
 # Blue Player Range
