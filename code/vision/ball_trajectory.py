@@ -2,19 +2,9 @@ import time
 import cv2 as cv
 import numpy as np
 
-if __name__ == "__main__":
-    from cam_info import img_to_world, X_PX2CM, Y_PX2CM
-    from detect import detect_circles, find_optimal_circle
-    from point_projection import closest_point
-else:
-    from pathlib import Path
-    import sys
-    _parent_dir = Path(__file__).parent.parent.resolve()
-    sys.path.insert(0, str(_parent_dir))
-    from vision.cam_info import img_to_world, X_PX2CM, Y_PX2CM
-    from vision.detect import detect_circles, find_optimal_circle
-    from vision.point_projection import closest_point
-    sys.path.remove(str(_parent_dir))
+from camera.transforms import image_to_world, AVG_PX2CM
+from detect import detect_circles, find_optimal_circle
+from point_projection import closest_point
 
 class BallTrajectory:
     """basic best fit line trajectory model for the ball. It will hold a queue
@@ -58,7 +48,7 @@ class BallTrajectory:
     def position(self) -> list | None:
         """Returns the position estimate of the ball in world coordinates"""
         if self.px_pos_estimate is not None:
-            return img_to_world(*(self.px_pos_estimate * self.img_scale))
+            return image_to_world(*(self.px_pos_estimate * self.img_scale))
         else:
             return None
         
@@ -73,7 +63,7 @@ class BallTrajectory:
             # and then get unit vector in world
             unit_dir_pt = self.px_pos_estimate + self.px_dir_estimate
             world_pos = self.position
-            world_unit_dir_pt = img_to_world(*(unit_dir_pt * self.img_scale))
+            world_unit_dir_pt = image_to_world(*(unit_dir_pt * self.img_scale))
             world_traj = np.array(world_unit_dir_pt) - np.array(world_pos)
             return list(world_traj / np.linalg.norm(world_traj)) # normalize to unit
         else:
@@ -83,7 +73,7 @@ class BallTrajectory:
     def speed(self) -> float | None:
         """Returns the instantaneous speed of the ball in cm/s"""
         if self.px_speed is not None:
-            return self.px_speed * ((X_PX2CM + Y_PX2CM) / 2) # avg for now
+            return self.px_speed * AVG_PX2CM # avg for now
 
     def step(self, frame: np.array):
         """step the trajectory forward in time. This will call detection methods

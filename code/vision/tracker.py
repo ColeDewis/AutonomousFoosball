@@ -17,10 +17,6 @@ from utils.decay_functions import ExponentialDecay
 from utils.weighted_moving_average import WeightedMovingAverage
 sys.path.remove(str(_parent_dir))
 
-from ball_trajectory import BallTrajectory
-from cam_info import DIST_COEF, CAM_MTX
-
-
 class Tracker:
     """class for handling object detection and tracking functionality"""
 
@@ -77,8 +73,6 @@ class Tracker:
             if not rval:
                 flag.set() # should stop other thread
 
-            # self.frame = cv.undistort(frame, CAM_MTX, DIST_COEF)
-
     def track_objects(self, flag: threading.Event):
         """handles detecting and tracking the ball via the BallTrajectory class.
 
@@ -92,8 +86,6 @@ class Tracker:
         resized_res = (self.img_w // self.img_scale, self.img_h // self.img_scale)
 
         while not flag.is_set():
-            # start = time.time()
-
             # copying to avoid frame changing between processing and drawing
             frame = self.frame.copy()
 
@@ -108,8 +100,6 @@ class Tracker:
             key = cv.waitKey(10)
             if key == ord('q'):
                 self.flag.set() # should stop the other thread
-
-            # print(f"Total Loop Time: {time.time() - start}")
 
     def is_alive(self):
         """checks if the tracking and capture threads are still alive"""

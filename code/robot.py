@@ -85,12 +85,7 @@ class Robot:
             
             # Once the ball has a trajectory, we update state based on whether
             # the trajectory is towards us or not.
-            if self.__ball_moving_towards_self(ball_traj):
-                print(f"{self.side}: STARTING TRACKING")
-                self.state = States.TRACKING
-            else:
-                print(f"{self.side}: STARTING WAITING")
-                self.state = States.WAITING_FOR_RETURN
+            self.state = States.TRACKING if self.__ball_moving_towards_self(ball_traj) else States.WAITING_FOR_RETURN
               
         elif self.state == States.TRACKING:
             if ball_pos is None or ball_traj is None:
@@ -109,18 +104,17 @@ class Robot:
                 self.state = States.SWINGING
             else:
                 self.__follow_ball(ball_pos, ball_traj)
-                if self.__done_moving():
-                    self.belt_angle = self.belt_moving_to_angle
             
         elif self.state == States.WAITING_FOR_RETURN:
             # as soon as ball starts moving towards us, start tracking (following) it
             if ball_traj is not None and self.__ball_moving_towards_self(ball_traj):
+                # move the flick motor backwards
                 self.brick_serv.send_data(np.pi/4, 0, 30, MessageType.ABSOLUTE, self.side)
+                self.flick_angle = np.pi/4
+                
                 self.state = States.TRACKING
             else:
                 self.__move_to_midpoint()
-                if self.__done_moving():
-                    self.belt_angle = self.belt_moving_to_angle
             
         elif self.state == States.SWINGING:
             # Swinging state - assumes we are at the necessary position to hit ball.
@@ -138,6 +132,7 @@ class Robot:
            This blocks until initialization is done.
         """
         self.brick_serv.send_data(np.pi/4, 0, 30, MessageType.ABSOLUTE, self.side)
+        self.flick_angle = np.pi/4
         self.__move_to_midpoint()
         # wait for movement to stop
         while self.arduino_serv.is_moving[self.side]: pass
@@ -169,7 +164,7 @@ class Robot:
            the position that the robot was at before movement started.
 
         Returns:
-            list: the x,y,z coordinates of the robot
+            ArrayLike: the x,y,z coordinates of the robot
         """
         return self.kinematics.forward_kinematics(self.belt_angle, self.flick_angle, self.twist_angle)
     
@@ -182,21 +177,43 @@ class Robot:
         """
         y_diff = abs(ball_pos[1] - self.kinematics.ty1)
         x_trajectory = ball_traj[0]
-        trajectory_adjustment = 1 if x_trajectory > 0 else -1
-        trajectory_adjustment *= y_diff / 15 # TODO: this is really arbitrary, test more 
-        target_x = ball_pos[0] - 3 + trajectory_adjustment
+        
+        # adjust our target based on the ball trajectory - that is, we overshoot the ball's position
+        # based on the direction is is moving, scaling down this overshooting as the ball gets closer
+        # to the y line our robot is on.
+        trajectory_adjustment *= x_trajectory * (y_diff / 10) # TODO: this is really arbitrary, test more 
+        target_x = ball_pos[0] + trajectory_adjustment
+        
         target_belt_angle = self.kinematics.inverse_kinematics(target_x, 0)
         
         # TODO: not sure if belt angle will update properly when we stopped (it might though)
         self.belt_moving_to_angle = target_belt_angle
         self.arduino_serv.send_angle(target_belt_angle, 10, MessageType.ABSOLUTE, self.side)
-        self.flick_angle += np.pi/4
-        self.twist_angle += 0     # change to hit angle we get from trajectory
+        self.twist_angle = 0     # change to hit angle we get from trajectory
+    
+    def __follow_expected_trajectory(self, ball_pos: list, ball_traj: list):
+        """Follow the expected trajectory of the ball by moving to where the trajectory
+           predicts the ball will be when it is on the robot's y line.
+
+        Args:
+            ball_pos (list): x, y ball position
+            ball_traj (list): ball trajectory vector
+        """
+        target_x = None # trajectory.predict()
+        target_belt_angle = self.kinematics.inverse_kinematics(target_x, 0)
+            
+        # TODO: not sure if belt angle will update properly when we stopped (it might though)
+        self.belt_moving_to_angle = target_belt_angle
+        self.arduino_serv.send_angle(target_belt_angle, 10, MessageType.ABSOLUTE, self.side)
+        self.twist_angle = 0     # change to hit angle we get from trajectory
+        pass
     
     def __swing(self):
         """Hit a ball."""
+        self.brick_serv.send_data(0, self.twist_angle, 30, MessageType.ABSOLUTE, self.side)
         self.brick_serv.send_data(0, 0, 30, MessageType.ABSOLUTE, self.side)
-        self.flick_angle -= np.pi/4
+        self.flick_angle = 0
+        self.twist_angle = 0
         
     def __shutdown(self):
         """Shuts down by sending termination to all clients."""
