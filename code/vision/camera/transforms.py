@@ -30,9 +30,9 @@ C_RX = np.pi
 C_RY = 5 * (np.pi / 180)
 C_RZ = -90 * (np.pi / 180)
 
-INTRINSIC = np.loadtxt(str(Path(__file__).parent) + "/calibrate/camera_mat.txt")
+INTRINSIC = np.loadtxt(str(Path(__file__).parent) + "/camera_mat.txt")
 INTRINSIC_INV = np.linalg.inv(INTRINSIC)
-DIST_COEF = np.loadtxt(str(Path(__file__).parent) + "/calibrate/distortion_coef.txt")
+DIST_COEF = np.loadtxt(str(Path(__file__).parent) + "/distortion_coef.txt")
 
 # NOTE: I measured the Camera Pose in World coordinates, meaning that the extrinsic
 # matrix made from this will correspond to the one required to go from camera coords
@@ -91,7 +91,7 @@ def image_to_world(u: int, v: int, z: float = 5.1) -> list:
     Returns:
         list: [x, y] coords in world frame
     """
-    s = CZ - z + 1 # adding 1 from empirical testing (gives lower error)
+    s = CZ - z + 3 # adding 3 from empirical testing (gives lower error)
     cam_coords = INTRINSIC_INV @ (s * np.array([u, v, 1]).T)
     world_coords = CAM_POSE_MTX @ np.append(cam_coords, 1)
     return list(world_coords[:2])
