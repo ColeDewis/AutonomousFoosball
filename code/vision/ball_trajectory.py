@@ -2,9 +2,14 @@ import time
 import cv2 as cv
 import numpy as np
 
-from camera.transforms import image_to_world, AVG_PX2CM
-from detect import detect_circles, find_optimal_circle
-from point_projection import closest_point
+if __name__ == "__main__":
+    from camera.transforms import image_to_world, AVG_PX2CM
+    from detect import detect_circles, find_optimal_circle
+    from point_projection import closest_point
+else:
+    from vision.camera.transforms import image_to_world, AVG_PX2CM
+    from vision.detect import detect_circles, find_optimal_circle
+    from vision.point_projection import closest_point
 
 class BallTrajectory:
     """basic best fit line trajectory model for the ball. It will hold a queue
