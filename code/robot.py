@@ -1,11 +1,15 @@
 import numpy as np
 import numpy.typing as nptyping
+from time import perf_counter
 from brick_server import BrickServer
 from arduino_server import ArduinoServer
 from shared_data import SharedData
 from kinematics.kinematics import Kinematics
+from trajectory.trajectory import Trajectory
 from vision.tracker import Tracker
 from messages.message_type import MessageType
+from utils.weighted_moving_average import WeightedMovingAverage
+from utils.decay_functions import ExponentialDecay
 from utils.side import Side
 
 class States():
@@ -36,13 +40,13 @@ class Robot:
     """Class to represent the robotic system as a whole, and manage the actions the 
        robot needs to take."""
     
-    # max no. of iterations with no detection before we exit
-    MAX_NO_DETECTION_THRESHOLD = 10000
+    # max no. of seconds with no detection before we exit
+    MAX_NO_DETECTION_THRESHOLD = 5
     
     # Threshold at which point we should swing
     SHOULD_HIT_THRESHOLD = 13.0
-    
-    # TODO: determine
+   
+    # Thresholds at which the ball is out of bounds
     BALL_Y_UPPER_BOUND = 72
     BALL_Y_LOWER_BOUND = 9
        
@@ -50,7 +54,8 @@ class Robot:
         self, 
         brick_serv: BrickServer, 
         arduino_serv: ArduinoServer, 
-        camera_tracker: Tracker, 
+        camera_tracker: Tracker,
+        trajectory_planner: Trajectory,
         shared_data: SharedData, 
         side: Side): 
         """Initialize the robot.
@@ -68,6 +73,7 @@ class Robot:
         self.brick_serv = brick_serv
         self.arduino_serv = arduino_serv
         self.shared_data = shared_data
+        self.trajectory_planner = trajectory_planner
         self.side = side
         self.kinematics = Kinematics(side)
         
@@ -79,7 +85,7 @@ class Robot:
         self.flick_angle = 0
         
         # state variables so we can find when we lose track of the ball for a DONE transition        
-        self.no_new_detection_count = 0
+        self.last_new_detection = None
         self.last_ball_pos = None
         
         self.state = States.INIT
@@ -92,11 +98,10 @@ class Robot:
         
         # global check - if we lose detections for too long, go to DONE
         if self.state != States.IDLE and self.state != States.INIT and ball_pos == self.last_ball_pos:
-            self.no_new_detection_count += 1
-            if self.no_new_detection_count > self.MAX_NO_DETECTION_THRESHOLD:
+            if perf_counter() - self.last_new_detection > self.MAX_NO_DETECTION_THRESHOLD:
                 self.state = States.DONE
         else:
-            self.no_new_detection_count = 0
+            self.last_new_detection = perf_counter()
             self.last_ball_pos = ball_pos
         
         # Global transition - if ball ever goes past a player, go to DONE
@@ -106,6 +111,8 @@ class Robot:
         # global check - if we are done moving update kinematic position
         if self.__done_moving():
             self.belt_angle = self.belt_moving_to_angle
+            with self.shared_data.lock:
+                self.shared_data.pos_dict[self.side] = self.__get_position()
         
         if self.state == States.INIT:
             # Move the robots to the midpoint
@@ -131,7 +138,8 @@ class Robot:
                 # the ball's y is close enough that we should just swing now
                 self.state = States.SWINGING
             else:
-                self.__follow_ball(ball_pos, ball_traj)
+                #self.__follow_ball(ball_pos, ball_traj)
+                self.__follow_expected_trajectory(ball_pos, ball_traj)
 
             # if, while the ball is moving towards us, it stops doing so, go to waiting for return,
             # so that we don't end up with both paddles in tracking state.
@@ -149,13 +157,11 @@ class Robot:
             # as soon as ball starts moving towards us, start tracking (following) it
             if ball_traj is not None and self.__ball_moving_towards_self(ball_traj):
                 self.state = States.TRACKING
-            # else:
-            #     self.__move_to_midpoint()
             
         elif self.state == States.SWINGING:
             # Swinging state - assumes we are at the necessary position to hit ball.
             self.__swing()
-            self.state = States.WAITING_FOR_RETURN
+            self.state = States.WIND_UP
             
         elif self.state == States.DONE:
             # reset all robots to their original positions
@@ -184,8 +190,8 @@ class Robot:
     def __move_to_midpoint(self):
         """Moves the robot to the middle of the field."""
         midpt_angle = self.kinematics.inverse_kinematics(25.0, 0)
-        self.arduino_serv.send_angle(midpt_angle, 5, MessageType.ABSOLUTE, self.side)
         self.belt_moving_to_angle = midpt_angle
+        self.arduino_serv.send_angle(midpt_angle, 5, MessageType.ABSOLUTE, self.side)
     
     def __done_moving(self) -> bool:
         """Checks if the robot is done moving.
@@ -202,7 +208,9 @@ class Robot:
         Returns:
             ArrayLike: the x,y,z coordinates of the robot
         """
-        return self.kinematics.forward_kinematics(self.belt_angle, self.flick_angle, self.twist_angle)
+        return np.transpose(
+            self.kinematics.forward_kinematics(self.belt_angle, self.flick_angle, self.twist_angle)
+        )[0]
     
     def __follow_ball(self, ball_pos: list, ball_traj: list):
         """Follows the ball by moving to its current x position, with an adjustment for trajectory.
@@ -233,19 +241,23 @@ class Robot:
             ball_pos (list): x, y ball position
             ball_traj (list): ball trajectory vector
         """
-        target_x = None # trajectory.predict()
-        target_belt_angle = self.kinematics.inverse_kinematics(target_x, 0)
+        target_x = self.trajectory_planner.position_on_goal_line(ball_pos, ball_traj, "", self.side)
+        print(target_x[0])
+        target_belt_angle = self.kinematics.inverse_kinematics(target_x[0], 0)
             
-        # TODO: not sure if belt angle will update properly when we stopped (it might though)
         self.belt_moving_to_angle = target_belt_angle
         self.arduino_serv.send_angle(target_belt_angle, 10, MessageType.ABSOLUTE, self.side)
-        self.twist_angle = 0     # change to hit angle we get from trajectory
-        pass
     
     def __swing(self):
         """Hit a ball."""
-        self.brick_serv.send_data(0, self.twist_angle, 100, MessageType.RELATIVE, self.side)
-        self.brick_serv.send_data(0, 0, 40, MessageType.ABSOLUTE, self.side)
+        opp_side = Side.LEFT if self.side == Side.RIGHT else Side.RIGHT
+        with self.shared_data.lock:
+            opponent_position = self.shared_data.pos_dict[opp_side]
+        hit_angle = self.trajectory_planner.find_best_angle(opponent_position[0], self.__get_position()[:2], "TOGETHER", opp_side)   
+        hit_angle *= (np.pi / 180)
+        print(hit_angle)
+        
+        self.brick_serv.send_data(0, hit_angle, 40, MessageType.ABSOLUTE, self.side)
         self.flick_angle = 0
         self.twist_angle = 0
         
