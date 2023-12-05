@@ -147,27 +147,28 @@ class Trajectory:
         return best_angle
 
 
-# Example usage:
-trajectory_instance = Trajectory()
-opposite_player_x = 30
-initial_position = (10, 20)
-mode = 'TOGETHER'
-side = 'LEFT'
-best_angle = trajectory_instance.find_best_angle(opposite_player_x, initial_position, mode, side)
-print(f"The best angle for the trajectory is: {best_angle} degrees.")
+if __name__ == "__main__":
+    # Example usage:
+    trajectory_instance = Trajectory()
+    opposite_player_x = 30
+    initial_position = (10, 20)
+    mode = 'TOGETHER'
+    side = 'LEFT'
+    best_angle = trajectory_instance.find_best_angle(opposite_player_x, initial_position, mode, side)
+    print(f"The best angle for the trajectory is: {best_angle} degrees.")
 
 
 
-# Example usage:
-direction_vector = (0.0001, 1)  # Replace with actual direction vector
-initial_position = (16, 18.5)  # Replace with actual initial position
-side = 'RIGHT'
-mode = 'TOGETHER'  # Replace with the desired mode
+    # Example usage:
+    direction_vector = (0.0001, 1)  # Replace with actual direction vector
+    initial_position = (16, 18.5)  # Replace with actual initial position
+    side = 'RIGHT'
+    mode = 'TOGETHER'  # Replace with the desired mode
 
-# Create an instance of the Trajectory class
-trajectory_instance = Trajectory()
+    # Create an instance of the Trajectory class
+    trajectory_instance = Trajectory()
 
-# Call the check_goal_or_collision method
-x_value, y_value = trajectory_instance.position_on_goal_line(initial_position, direction_vector, mode, side)
+    # Call the check_goal_or_collision method
+    x_value, y_value = trajectory_instance.position_on_goal_line(initial_position, direction_vector, mode, side)
 
-print(f"Final x value : {x_value}, Final y value: {y_value}") 
+    print(f"Final x value : {x_value}, Final y value: {y_value}") 
