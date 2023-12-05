@@ -52,8 +52,5 @@ if __name__ == "__main__":
             client.send_done()
             break
 
-        ret = robot_player.parse_data(data)
-        if ret:
-            client.send_done()
-        else:
-            client.send_reset()
+        robot_player.parse_data(data)
+        client.send_done()

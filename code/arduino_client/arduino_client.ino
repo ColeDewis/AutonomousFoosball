@@ -35,10 +35,10 @@ void loop() {
   {
     // reset all steppers to 0. we will NEVER exit this once we get here, so this serves as termination
     leftStepper.moveTo(0);
-    leftStepper.setSpeed(1000);
+    leftStepper.setSpeed(500);
     leftStepper.runSpeedToPosition();
     rightStepper.moveTo(0);
-    rightStepper.setSpeed(1000);
+    rightStepper.setSpeed(500);
     rightStepper.runSpeedToPosition();
   } 
   else if (Serial.available() > 0) 

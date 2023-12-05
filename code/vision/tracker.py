@@ -147,7 +147,7 @@ class Tracker:
 
 if __name__ == "__main__":
     # for testing
-    tracker = Tracker(2, img_scale=2)
+    tracker = Tracker(0, img_scale=2)
     print("Tracker set up, object tracking commencing ...")
     try:
         while tracker.is_alive():

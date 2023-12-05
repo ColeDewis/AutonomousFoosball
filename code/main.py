@@ -4,6 +4,7 @@ from robot import Robot
 from brick_server import BrickServer
 from arduino_server import ArduinoServer
 from vision.tracker import Tracker
+from shared_data import SharedData
 from messages.message_type import MessageType
 from utils.side import Side
 
@@ -27,9 +28,10 @@ if __name__ == "__main__":
     brick_server = BrickServer(left_brick_host, right_brick_host, port)
     arduino_server = ArduinoServer("COM6", 115200)
     tracker = Tracker(0, img_scale=2)
+    shared_data = SharedData()
     
-    right_robot = Robot(brick_server, arduino_server, tracker, Side.RIGHT)
-    left_robot = Robot(brick_server, arduino_server, tracker, Side.LEFT)
+    right_robot = Robot(brick_server, arduino_server, tracker, shared_data, Side.RIGHT)
+    left_robot = Robot(brick_server, arduino_server, tracker, shared_data, Side.LEFT)
     
     # TODO: evaluate thread-safety of brickserver/arduinoserver/tracker
     right_robot_thread = threading.Thread(target=run_robot, args=(right_robot,))

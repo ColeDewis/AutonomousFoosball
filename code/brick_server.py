@@ -18,21 +18,21 @@ class BrickServer:
             port (int): ip port
         """
         # setup server socket
-        rightsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-        leftsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        right_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+        left_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # We need to use the ip address that shows up in ipconfig for the usb ethernet adapter
         # that handles the comunication between the PC and the brick
         print("Setting up left side Server\nAddress: " + left_host + "\nPort: " + str(port))
         print("Setting up right side Server\nAddress: " + right_host + "\nPort: " + str(port))
         
-        rightsocket.bind((right_host, port))
-        leftsocket.bind((left_host, port))
+        right_socket.bind((right_host, port))
+        left_socket.bind((left_host, port))
         
         # queue up to 5 requests
-        rightsocket.listen(5) 
-        leftsocket.listen(5)
-        self.r_conn, right_addr = rightsocket.accept()
-        self.l_conn, left_addr = leftsocket.accept()
+        right_socket.listen(5) 
+        left_socket.listen(5)
+        self.r_conn, right_addr = right_socket.accept()
+        self.l_conn, left_addr = left_socket.accept()
         self.conn_dict = {Side.LEFT: self.l_conn, Side.RIGHT: self.r_conn}
         print(f"Connected to: {right_addr}")
         print(f"Connected to: {left_addr}")
