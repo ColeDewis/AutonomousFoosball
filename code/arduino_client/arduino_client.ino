@@ -6,6 +6,7 @@
 #define RESET_ID 0
 #define MIN_ALLOWED_STEPS 0
 #define MAX_ALLOWED_STEPS 2100
+#define MAX_SPEED 1000
 
 // Define the stepper motor and the pins that is connected to
 AccelStepper leftStepper(1, 3, 4);   // (STEP PIN=3, DIR PIN=4)
@@ -24,9 +25,9 @@ void setup() {
   leftHasTarget = false;
   rightHasTarget = false;
   leftStepper.setCurrentPosition(0);
-  leftStepper.setMaxSpeed(1300);
+  leftStepper.setMaxSpeed(1000);
   rightStepper.setCurrentPosition(0);
-  rightStepper.setMaxSpeed(1300);
+  rightStepper.setMaxSpeed(1000);
   Serial.begin(115200);
 }
 
@@ -54,9 +55,10 @@ void loop() {
     {
       char buf[3];
       Serial.readBytes(buf, 3);
-      int mask = (1 << 7); // mask: 1000 0000
+      uint8_t mask = (1 << 7); // mask: 1000 0000
       int sign = (buf[0] & mask) > 0; 
       uint8_t speed = (buf[0] & (~mask)); // ~mask: - 0111 1111
+      if (speed > 100) speed = 100;
 
       // reconstruct the step target
       uint8_t a = buf[1];
@@ -72,13 +74,13 @@ void loop() {
       if (motorId == LEFT_STEPPER_ID) 
       {
         leftCurrentTargetPosition = target;
-        leftCurrentSpeed = 100 * speed;
+        leftCurrentSpeed = MAX_SPEED * speed / 100;
         leftHasTarget = true;
       } 
       else if (motorId == RIGHT_STEPPER_ID) 
       {
         rightCurrentTargetPosition = target;
-        rightCurrentSpeed = 100 * speed;
+        rightCurrentSpeed = MAX_SPEED * speed / 100;
         rightHasTarget = true;
       }
     }

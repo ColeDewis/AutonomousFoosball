@@ -74,7 +74,7 @@ if __name__ == "__main__":
     server = ArduinoServer("COM6", 115200)
     time.sleep(3)
     #server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
-    server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.LEFT)
+    server.send_angle(8 * np.pi, 20, MessageType.ABSOLUTE, Side.LEFT)
     while True:
         retmsg = server.arduino.read(1)
         print(retmsg)

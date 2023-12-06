@@ -34,7 +34,7 @@ class Kinematics():
         
         # translation distances from the motor across the joint link
         if side == Side.RIGHT:
-            self.d1 = 9
+            self.d1 = 8.5
             self.d2 = 3
         elif side == Side.LEFT:
             self.d1 = 8.5

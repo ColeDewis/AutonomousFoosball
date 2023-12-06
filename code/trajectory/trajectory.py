@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 class Trajectory:
     """
@@ -57,7 +58,7 @@ class Trajectory:
         Returns:
             tuple: Time to collision and the side of collision ("left" or "right").
         """
-        if direction_vector[0] == 0:
+        if np.isclose(direction_vector[0], 0.0):
             return float('inf'), float(0)
 
         t_x_left = (self.left_boundary_value - initial_position[0]) / direction_vector[0]
