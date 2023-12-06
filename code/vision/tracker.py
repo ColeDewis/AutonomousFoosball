@@ -3,9 +3,10 @@ import numpy as np
 import os
 import threading
 import time
-
-from ball_trajectory import BallTrajectory
-
+if __name__ == "__main__":
+    from ball_trajectory import BallTrajectory
+else:   
+    from vision.ball_trajectory import BallTrajectory
 
 class Tracker:
     """class for handling object detection and tracking functionality"""
@@ -137,7 +138,7 @@ class Tracker:
 
 if __name__ == "__main__":
     # for testing
-    tracker = Tracker(2, img_scale=2)
+    tracker = Tracker(0, img_scale=2)
     print("Tracker set up, object tracking commencing ...")
     try:
         while tracker.is_alive():

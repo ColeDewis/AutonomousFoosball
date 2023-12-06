@@ -19,11 +19,14 @@ class ExponentialDecay(WeightFunction):
     Args:
         WeightFunction (class): abstract class extended.
     """
-    def weight(self, age: int):
+    def weight(self, age: int) -> int:
         """Uses inverse exponential as weight decay
 
         Args:
             age (int): age of element
+            
+        Returns:
+            int: weight of the entry
         """
         return 1 / np.exp(age)
     
@@ -40,12 +43,15 @@ class TrustDecay(WeightFunction):
         self.call_count = 0
         self.pair_num = 0
         
-    def weight(self, age: int):
+    def weight(self, age: int) -> int:
         """Initially assumes equal confidence, lowering odd inputs confidence
            over time.
 
         Args:
             age (int): unused
+            
+        Returns:
+            int: weight of the entry
         """
         
         if self.call_count % 2 == 0: # even: trust increase (camera)

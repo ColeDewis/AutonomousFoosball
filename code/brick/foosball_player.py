@@ -47,8 +47,6 @@ class FoosballPlayer:
             self.move_absolute(nums[:2], nums[2])
         else:
             raise ValueError("Invalid message type passed")
-        
-        return True
 
     def move_absolute(self, angles: list, speed: int):
         """Moves the motors by the given angle array, as an absolute goal 
