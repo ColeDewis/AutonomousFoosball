@@ -17,43 +17,18 @@ X_PX2CM = 36.1 / 416
 Y_PX2CM = 28.5 / 337
 AVG_PX2CM = (X_PX2CM + Y_PX2CM) / 2
 
-# Camera translation from world origin (in cm's)
-CX = 22.2
-CY = 42
-CZ = 62.9
-
-# Camera Rotations from world origin
-C_RX = np.pi
-C_RY = 5 * (np.pi / 180)
-C_RZ = -90 * (np.pi / 180)
+# Plane Equation coefficients
+A = -0.0006659935
+B = 0.010184872
+C = 58.39907455444336 + 1.3 # extra +1.3 since the balls in the image were a bit above normal
 
 INTRINSIC = np.loadtxt(str(Path(__file__).parent) + "/camera_mat.txt")
 INTRINSIC_INV = np.linalg.inv(INTRINSIC)
 DIST_COEF = np.loadtxt(str(Path(__file__).parent) + "/distortion_coef.txt")
 
-# NOTE: I measured the Camera Pose in World coordinates, meaning that the extrinsic
-# matrix made from this will correspond to the one required to go from camera coords
-# to world coords (the inverse operation). To get how the world points should
-# transform to camera coordinates, we can just invert the homogeneous matrix
-# NOTE: For whatever reason I'm getting much less error when assuming the camera
-# is parallel to the table even though there is a slight angle in reality
-# CAM_POSE_MTX = np.array(
-#     [
-#         [0, -np.cos(C_RY), -np.sin(C_RY), CX],
-#         [-1, 0, 0, CY],
-#         [0, np.sin(C_RY), -np.cos(C_RY), CZ],
-#         [0, 0, 0, 1]
-#     ]
-# )
-CAM_POSE_MTX = np.array(
-    [
-        [0, -1, 0, CX],
-        [-1, 0, 0, CY],
-        [0, 0, -1, CZ],
-        [0, 0, 0, 1]
-    ]
-)
-EXTRINSIC_MTX = np.linalg.inv(CAM_POSE_MTX)
+EXTRINSIC = np.loadtxt(str(Path(__file__).parent) + "/ball_detection_extrinsic.txt")
+EXTRINSIC = np.row_stack((EXTRINSIC, [0, 0, 0, 1]))
+CAM_POSE_MTX = np.linalg.inv(EXTRINSIC)
 
 
 def world_to_image(x: float, y: float, z: float = 5.1) -> list:
@@ -66,7 +41,7 @@ def world_to_image(x: float, y: float, z: float = 5.1) -> list:
     Returns:
         list: [u, v] coords in image frame
     """
-    cam_coords = EXTRINSIC_MTX @ np.array([x, y, z, 1]).T
+    cam_coords = EXTRINSIC @ np.array([x, y, z, 1]).T
     scaled_img_coords = INTRINSIC @ cam_coords[:3] # drop homogeneous coord
     img_coords = (scaled_img_coords / scaled_img_coords[2]).astype(int)
     return list(img_coords[:2])
@@ -75,10 +50,8 @@ def world_to_image(x: float, y: float, z: float = 5.1) -> list:
 def image_to_world(u: int, v: int, z: float = 5.1) -> list:
     """gets world coordinates from image coordinates
 
-    NOTE: currently assuming uniform object distance from camera, so the scale
-    value is fixed once z is known. If this proves to do poorly at image edges,
-    I could take measurements all over the arena and fit a function to the results,
-    and compute the scale from that
+    NOTE: Since our camera was slightly rotated, we best fit a plane to some
+    measured scale values to get better estimates
     
     Args:
         u (int): x coordinate in image
@@ -88,11 +61,11 @@ def image_to_world(u: int, v: int, z: float = 5.1) -> list:
     Returns:
         list: [x, y] coords in world frame
     """
-    # s = CZ - z + 3 # adding 3 from empirical testing (gives lower error)
-    s = CZ - z
+    s = A * u + B * v + C
     cam_coords = INTRINSIC_INV @ (s * np.array([u, v, 1]).T)
     world_coords = CAM_POSE_MTX @ np.append(cam_coords, 1)
     return list(world_coords[:2])
+
 
 if __name__ == "__main__":
     ######################### TESTING ######################################
@@ -164,7 +137,7 @@ if __name__ == "__main__":
     cv.waitKey(0)
 
     ############################################################################
-    ###################### Get Measured Extrinsic Error ########################
+    ###################### Get Extrinsic Error ########################
     ############################################################################
 
     for_error = np.transpose(np.array([0., 0.]))
@@ -175,11 +148,11 @@ if __name__ == "__main__":
         world_est = image_to_world(*img_coord, true_coords[i][2])
         inv_error += np.abs(true_coords[i][:2] - np.array(world_est))
 
-    print(f"Average Forward Error (Measured Extrinsic): {for_error / true_coords.shape[0]}")
-    print(f"Average Inverse Error (Measured Extrinsic): {inv_error / true_coords.shape[0]}")
+    print(f"Average Forward Error: {for_error / true_coords.shape[0]}")
+    print(f"Average Inverse Error: {inv_error / true_coords.shape[0]}")
 
     ############################################################################
-    ###################### Compute Extrinsic ###################################
+    ################# Compute Extrinsic from square images #####################
     ############################################################################
 
     ret, rvec1, tvec1 = cv.solvePnP(true_coords, np.array(image_coords).astype(float), INTRINSIC, DIST_COEF)
@@ -202,9 +175,7 @@ if __name__ == "__main__":
         uv = suv / s_new
         for_error += np.abs(img_coord - uv[:2])
 
-        print(f"True Image Coords: {img_coord}")
         suv_new = np.append(img_coord, 1) * s_new
-        print(f"Scaled Image Coords: {suv_new}")
         cam_coords = np.expand_dims(INTRINSIC_INV @ suv_new, 1)
         cam_coords -= tvec1
         world_est = np.squeeze(np.linalg.inv(R_mtx) @ cam_coords)
@@ -213,8 +184,14 @@ if __name__ == "__main__":
     print(f"Average Forward Error (Computed Extrinsic): {for_error / true_coords.shape[0]}")
     print(f"Average Inverse Error (Computed Extrinsic): {inv_error / true_coords.shape[0]}")
 
+    ############################################################################
+    ###################### Plot Scale Values ###################################
+    ############################################################################
+
     np_img_coords = np.array(image_coords)
     ax = plt.figure().add_subplot(projection='3d')
     ax.scatter(np_img_coords[:, 0], np_img_coords[:, 1], s_arr, color = "blue")
-    plt.title("z coordinates around the arena")
+    plt.xlabel("U Coordinate (pixels)")
+    plt.ylabel("V Coordinate (pixels)")
+    plt.title("Z Camera Coordinates of Points Around Arena")
     plt.show()

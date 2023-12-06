@@ -4,15 +4,6 @@ import os
 import threading
 import time
 
-# scuffed way of importing from same level package since ".." wouldn't work
-from pathlib import Path
-import sys
-_parent_dir = Path(__file__).parent.parent.resolve()
-sys.path.insert(0, str(_parent_dir))
-from utils.decay_functions import ExponentialDecay
-from utils.weighted_moving_average import WeightedMovingAverage
-sys.path.remove(str(_parent_dir))
-
 from ball_trajectory import BallTrajectory
 
 
@@ -88,8 +79,8 @@ class Tracker:
             # copying to avoid frame changing between processing and drawing
             frame = self.frame.copy()
 
-            # for saving compute time. Will cause rounding errors when converting
-            # coordinates back to original size but whatever
+            # downscaling to lower compute time. Will cause rounding errors when
+            # converting coordinates back to original size but whatever
             resized_frame = cv.resize(frame, resized_res, interpolation=cv.INTER_AREA)
             self.ball_trajectory.step(resized_frame)
             self.__draw_ball_information(frame)
@@ -152,8 +143,8 @@ if __name__ == "__main__":
         while tracker.is_alive():
             print(f"Ball Position Estimate: {tracker.ball_trajectory.position}")
             print(f"Ball Direction Estimate: {tracker.ball_trajectory.direction}")
-            # print(f"Ball Speed Estimate: {tracker.ball_trajectory.speed}")
-            time.sleep(2)
+            print(f"Ball Speed Estimate: {tracker.ball_trajectory.speed}")
+            time.sleep(0.5)
         tracker.stop_tracking()
     except KeyboardInterrupt:
         tracker.stop_tracking()

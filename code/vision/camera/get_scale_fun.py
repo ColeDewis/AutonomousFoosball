@@ -1,22 +1,18 @@
 import numpy as np
 import cv2 as cv
 from pathlib import Path
+from matplotlib import pyplot as plt
+from sklearn import linear_model
 import glob
 import re
 
 from transforms import (
-    CX,
-    CY,
-    CZ,
     BALL_RADIUS_PX,
-    BALL_DIAMTER_CM,
     INTRINSIC,
     INTRINSIC_INV,
-    EXTRINSIC_MTX,
     DIST_COEF,
-    CAM_POSE_MTX,
-    world_to_image,
-    image_to_world
+    image_to_world,
+    world_to_image
 )
 
 RED_LOW_MASK = (155, 145, 0)
@@ -100,39 +96,21 @@ def sort_nicely(l):
 ########################## World Coordinate Preparation #######################
 ###############################################################################
 
-# # z value is euclidean distance to camera center, not z value in world coords
-# measured_coords = np.array([
-#         [43.4, 5.8, 68.0],
-#         [43.4, 38.7, 59.0],
-#         [43.5, 77.0, 69.1],
-#         [26.3, 77.1, 67.3],
-#         [5.7, 76.9, 72.5],
-#         [5.8, 41.3, 62.0],
-#         [5.8, 6.7, 71.7],
-#         [25.1, 5.9, 67.8],
-#         [18.4, 26.0, 61.1],
-#         [19.5, 58.9, 60.6],
-#         [35.5, 63.5, 62.2],
-#         [35.2, 22.2, 61.5],
-#         [26.4, 42.8, 57.2]
-#     ]
-# )
-
 # the balls were propped up in each of the images by a fix amount due to container
 true_world_coords = np.array([
-        [43.4, 5.8, 5.5],
-        [43.4, 38.7, 5.5],
-        [43.5, 77.0, 5.5],
-        [26.3, 77.1, 5.5],
-        [5.7, 76.9, 5.5],
-        [5.8, 41.3, 5.5],
-        [5.8, 6.7, 5.5],
-        [25.1, 5.9, 5.5],
-        [18.4, 26.0, 5.5],
-        [19.5, 58.9, 5.5],
-        [35.5, 63.5, 5.5],
-        [35.2, 22.2, 5.5],
-        [26.4, 42.8, 5.5]
+        [43.4, 5.8, 6.2],
+        [43.4, 38.7, 6.2],
+        [43.5, 77.0, 6.2],
+        [26.3, 77.1, 6.2],
+        [5.7, 76.9, 6.2],
+        [5.8, 41.3, 6.2],
+        [5.8, 6.7, 6.2],
+        [25.1, 5.9, 6.2],
+        [18.4, 26.0, 6.2],
+        [19.5, 58.9, 6.2],
+        [35.5, 63.5, 6.2],
+        [35.2, 22.2, 6.2],
+        [26.4, 42.8, 6.2]
     ]
 )
 
@@ -154,49 +132,105 @@ for i, fname in enumerate(images):
     if circles is not None:
         x, y, r = find_optimal_circle(circles, img_scale=1)
         img_coords.append(np.array([x, y]))
-        # cv.circle(frame, (int(x), int(y)), int(r), (255, 0, 0), 2)
-        # cv.imshow("circle", frame)
-        # cv.waitKey(0)
+        cv.circle(frame, (int(x), int(y)), int(r), (255, 0, 0), 2)
+        cv.imshow("circle", frame)
+        cv.waitKey(0)
 
+############################################################################
+###################### Get Measured Extrinsic Error ########################
+############################################################################
+
+for_error = np.transpose(np.array([0., 0.]))
+inv_error = np.transpose(np.array([0., 0.]))
+for i, img_coord in enumerate(img_coords):
+    img_est = world_to_image(*np.squeeze(true_world_coords[i]))
+    for_error += np.abs(img_coord - np.array(img_est))
+    world_est = image_to_world(*img_coord, true_world_coords[i][2])
+    inv_error += np.abs(true_world_coords[i][:2] - np.array(world_est))
+
+print(f"Average Forward Error: {for_error / true_world_coords.shape[0]}")
+print(f"Average Inverse Error: {inv_error / true_world_coords.shape[0]}")
+
+
+###############################################################################
+################### Solve for extrinsic matrix ##############################
+###############################################################################
 
 print("solvePNP")
 ret, rvec1, tvec1 = cv.solvePnP(true_world_coords, np.array(img_coords), INTRINSIC, DIST_COEF)
 R_mtx, jac = cv.Rodrigues(rvec1)
 Rt = np.column_stack((R_mtx,tvec1))
 P_mtx = INTRINSIC.dot(Rt)
-
-print(f"Measured Extrinsic: {EXTRINSIC_MTX}")
-print(f"Computed Extrinsic: {Rt}")
+np.savetxt("ball_detection_extrinsic.txt", Rt)
 
 ###############################################################################
-######################## Finding average s value ##############################
+################### Find s values and compute errors ##########################
 ###############################################################################
 
-print("\n################# Finding optimal s value ####################\n")
-s = 0
-img_to_world_err = np.array([0., 0.])
+s_arr = []
+for_error = np.transpose(np.array([0., 0.]))
+inv_error = np.transpose(np.array([0., 0.]))
 for i, img_coord in enumerate(img_coords):
-    print("\n---------- True Values ---------------")
-    print(f"True Image Coordinate: {img_coord}")
-    print(f"True World Coordinate: {true_world_coords[i]}")
-
+    # forwards process
     suv = P_mtx @ np.append(true_world_coords[i], 1).T
     s_new = suv[2]
+    s_arr.append(s_new)
     uv = suv / s_new
-    print(f"Image Estimate: {uv}")
-    print(f"Scale: {s_new}")
-    s += s_new / len(img_coords)
+    for_error += np.abs(img_coord - uv[:2])
 
+    # backwards process
     suv_new = np.append(img_coord, 1) * s_new
     cam_coords = np.expand_dims(INTRINSIC_INV @ suv_new, 1)
     cam_coords -= tvec1
-    world_coords = np.squeeze(np.linalg.inv(R_mtx) @ cam_coords)
-    print(f"World Estimate: {np.squeeze(world_coords)}")
+    world_est = np.squeeze(np.linalg.inv(R_mtx) @ cam_coords)
+    inv_error += np.abs(true_world_coords[i][:2] - world_est[:2])
 
-    # computing error
-    diff = np.abs(world_coords[:2] - true_world_coords[i][:2])
-    print(f"DIFFERENCE: {diff}")
-    img_to_world_err += diff / len(img_coords)
+print(f"Average Forward Error (Computed Extrinsic): {for_error / true_world_coords.shape[0]}")
+print(f"Average Inverse Error (Computed Extrinsic): {inv_error / true_world_coords.shape[0]}")
 
-print(f"Average error: {img_to_world_err}")
-print(f"Average scale value: {s}")
+###############################################################################
+################### Find plane equation for s values ##########################
+###############################################################################
+
+np_img_coords = np.array(img_coords)
+x = np_img_coords[:, 0].flatten()
+y = np_img_coords[:, 1].flatten()
+z = np.array(s_arr).flatten()
+
+X_data = np.column_stack((x, y))
+Y_data = z
+
+reg = linear_model.LinearRegression().fit(X_data, Y_data)
+
+a, b = reg.coef_
+c = reg.intercept_
+print(f"Coefficients of the plane: {a, b}")
+print(f"Intercept: {c}")
+
+###############################################################################
+################### Plot the data and the fit plane ##########################
+###############################################################################
+
+# Create a 3D scatter plot
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.scatter(x, y, z, c='r', marker='o', label='Data Points')
+
+# Create a meshgrid for the plane
+x_plane = np.linspace(min(x), max(x), 100)
+y_plane = np.linspace(min(y), max(y), 100)
+x_plane, y_plane = np.meshgrid(x_plane, y_plane)
+z_plane = a * x_plane + b * y_plane + c
+ax.plot_surface(x_plane, y_plane, z_plane, alpha=0.5, color='b', label='Plane')
+
+# Set labels for each axis
+ax.set_xlabel('U Coordinates (pixels)')
+ax.set_ylabel('V Coordinates (pixels)')
+ax.set_zlabel('Z Coordinates (cm)')
+
+# Set plot title
+ax.set_title('Z Camera Coordinates of Points in Playing Area')
+
+# Add a legend
+ax.legend()
+plt.show()
