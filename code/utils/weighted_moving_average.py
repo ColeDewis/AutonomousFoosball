@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.typing as nptyping
 from collections import deque
 
 if __name__ == "__main__":
@@ -87,7 +88,7 @@ class WeightedMovingAverage:
         """
         self.points = [x for x in self.points if x.age < age_threshold]
             
-    def output(self) -> list | None:
+    def output(self) -> nptyping.ArrayLike | None:
         """Output the current value of the weighted moving average.
 
         Returns:
