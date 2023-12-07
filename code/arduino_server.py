@@ -22,7 +22,7 @@ class ArduinoServer:
             port (str): serial port, i.e. COM6
             baudrate (int): baudrate to use for serial connection
         """
-        self.arduino = serial.Serial(port=port, baudrate=baudrate, timeout=None)
+        self.arduino = serial.Serial(port=port, baudrate=baudrate, timeout=0.1)
         self.step_pos = {Side.LEFT: 0, Side.RIGHT: 0}
         self.side_to_id = {Side.LEFT: self.LEFT_STEPPER_ID, Side.RIGHT: self.RIGHT_STEPPER_ID}
         self.is_moving = {Side.LEFT: False, Side.RIGHT: False}
@@ -59,10 +59,12 @@ class ArduinoServer:
         """Asynchronously wait for a "done" response from the stepper."""
         while True:
             retmsg = self.arduino.read(1)
-            if int.from_bytes(retmsg) == self.LEFT_STEPPER_ID:
-                self.is_moving[Side.LEFT] = False
-            elif int.from_bytes(retmsg) == self.RIGHT_STEPPER_ID:
-                self.is_moving[Side.RIGHT] = False
+            if len(retmsg):
+                if int.from_bytes(retmsg) == self.LEFT_STEPPER_ID:
+                    self.is_moving[Side.LEFT] = False
+                elif int.from_bytes(retmsg) == self.RIGHT_STEPPER_ID:
+                    self.is_moving[Side.RIGHT] = False
+            time.sleep(0.1)
         
     def send_reset(self):
         """Send a message telling the arduino to reset ALL motors."""

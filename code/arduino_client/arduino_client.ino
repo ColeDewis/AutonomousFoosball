@@ -6,7 +6,7 @@
 #define RESET_ID 0
 #define MIN_ALLOWED_STEPS 0
 #define MAX_ALLOWED_STEPS 2100
-#define MAX_SPEED 1000
+#define MAX_SPEED 1300
 
 // Define the stepper motor and the pins that is connected to
 AccelStepper leftStepper(1, 3, 4);   // (STEP PIN=3, DIR PIN=4)

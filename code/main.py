@@ -18,9 +18,10 @@ def run_robot(robot: Robot):
     last = time.perf_counter()
     while True:
         robot.run()
-        if time.perf_counter() - last > 0.1:
-            print(f"{robot.side}, {robot.state}")
-            last = time.perf_counter()
+        time.sleep(0.1)
+        # if time.perf_counter() - last > 0.1:
+        #     print(f"{robot.side}, {robot.state}")
+        #     last = time.perf_counter()
 
 if __name__ == "__main__":
     right_brick_host = "192.168.137.1"

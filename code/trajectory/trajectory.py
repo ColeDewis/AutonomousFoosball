@@ -31,13 +31,13 @@ class Trajectory:
     def __init__(self) -> None:
         self.goal_line_dict = {"LEFT": 63.5, "RIGHT": 17}
 
-    def time_to_goal_line(self, initial_position: tuple, direction_vector: tuple, side: str) -> float:
+    def time_to_goal_line(self, initial_position: list, direction_vector: list, side: str) -> float:
         """
         Calculate the time to reach the goal line.
 
         Args:
-            initial_position (tuple): Initial position (x, y).
-            direction_vector (tuple): Direction vector (dx, dy).
+            initial_position (list): Initial position (x, y).
+            direction_vector (list): Direction vector (dx, dy).
             side (str): Side of the goal line ("LEFT" or "RIGHT").
 
         Returns:
@@ -47,13 +47,13 @@ class Trajectory:
         t_goal = (goal_line - initial_position[1]) / direction_vector[1]
         return t_goal
 
-    def time_to_wall_collision(self, initial_position: tuple, direction_vector: tuple) -> tuple:
+    def time_to_wall_collision(self, initial_position: list, direction_vector: list) -> tuple:
         """
         Calculate the time to collision with the left or right boundary.
 
         Args:
-            initial_position (tuple): Initial position (x, y).
-            direction_vector (tuple): Direction vector (dx, dy).
+            initial_position (list): Initial position (x, y).
+            direction_vector (list): Direction vector (dx, dy).
 
         Returns:
             tuple: Time to collision and the side of collision ("left" or "right").
@@ -69,22 +69,27 @@ class Trajectory:
         elif t_x_right > 0:
             return t_x_right, "right"
         else:
-            print("Invalid direction vector")
+            print("Invalid direction vector", t_x_left, t_x_right)
             return None, None
 
-    def position_on_goal_line(self, initial_position: tuple, direction_vector: tuple, mode: str, side: str) -> tuple:
+    def position_on_goal_line(self, initial_position: list, direction_vector: list, mode: str, side: str) -> tuple:
         """
         Calculate the position on the goal line.
 
         Args:
-            initial_position (tuple): Initial position (x, y).
-            direction_vector (tuple): Direction vector (dx, dy).
+            initial_position (list): Initial position (x, y).
+            direction_vector (list): Direction vector (dx, dy).
             mode (str): Trajectory mode ("TOGETHER" or "AGAINST").
             side (str): Side of the goal line ("LEFT" or "RIGHT").
 
         Returns:
             tuple: Position on the goal line (x, y).
         """
+        if initial_position[0] >= self.right_boundary_value:
+            initial_position[0] = self.right_boundary_value - 1
+        if initial_position[0] <= self.left_boundary_value:
+            initial_position[0] = self.left_boundary_value + 1
+        
         t_goal = self.time_to_goal_line(initial_position, direction_vector, side)
         t_collision, wall_hit = self.time_to_wall_collision(initial_position, direction_vector)
 
@@ -102,9 +107,9 @@ class Trajectory:
         else:
             new_x = self.left_boundary_value if wall_hit == "left" else self.right_boundary_value
             new_y = initial_position[1] + direction_vector[1] * t_collision
-            new_direction_vector = (-direction_vector[0], direction_vector[1])
+            new_direction_vector = [-direction_vector[0], direction_vector[1]]
 
-            new_initial_position = (new_x, new_y)
+            new_initial_position = [new_x, new_y]
             new_direction_vector = new_direction_vector
 
             return self.position_on_goal_line(new_initial_position, new_direction_vector, mode, side)
@@ -129,10 +134,10 @@ class Trajectory:
 
         for angle in range(-45, 46):  # Adjusted the range to include -45 to 45 degrees
             theta = math.radians(angle)
-            new_direction_vector = (
+            new_direction_vector = [
                 math.sin(theta),
                 math.cos(theta) if side == 'LEFT' else -math.cos(theta)
-            )
+            ]
 
             x_hit, _ = self.position_on_goal_line(initial_position, new_direction_vector, mode, side)
 

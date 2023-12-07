@@ -131,7 +131,7 @@ class BallTrajectory:
                 else:
                     speed = 100
 
-                self.px_pos_estimate +=  speed * time_diff * self.px_dir_estimate
+                self.px_pos_estimate +=  (speed / 20) * time_diff * self.px_dir_estimate
 
             # age the trajectory to ensure we don't get potentially stuck forever
             self.px_positions.pop(0)
@@ -225,7 +225,7 @@ class BallTrajectory:
         else:
             return False
 
-    def __is_stationary(self, n: int = 5, threshold: float = 5.0) -> bool:
+    def __is_stationary(self, n: int = 5, threshold: float = 15.0) -> bool:
         """checks to see if the ball is basically stationary so we don't try
         and estimate a trajectory from its previous points.
 

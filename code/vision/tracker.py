@@ -86,7 +86,7 @@ class Tracker:
             self.ball_trajectory.step(resized_frame)
             self.__draw_ball_information(frame)
             cv.imshow(window_name, frame)
-
+            
             # check if q key is pressed
             key = cv.waitKey(10)
             if key == ord('q'):

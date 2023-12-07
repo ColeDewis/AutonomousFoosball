@@ -19,6 +19,7 @@ def serial_message(motor_id: int, speed: int, target: int) -> bytearray:
         speed_sign_byte |= (1 << 7)
     speed_sign_byte |= speed
     packet.append(speed_sign_byte)
+    if target > 2100: target = 2100
     targetbytes = (abs(target)).to_bytes(2)
     packet += targetbytes
     return packet

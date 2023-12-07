@@ -41,14 +41,14 @@ class Robot:
        robot needs to take."""
     
     # max no. of seconds with no detection before we exit
-    MAX_NO_DETECTION_THRESHOLD = 5
+    MAX_NO_DETECTION_THRESHOLD = 3
     
     # Threshold at which point we should swing
-    SHOULD_HIT_THRESHOLD = 13.0
+    SHOULD_HIT_THRESHOLD = 10.0 # 12
    
     # Thresholds at which the ball is out of bounds
-    BALL_Y_UPPER_BOUND = 72
-    BALL_Y_LOWER_BOUND = 9
+    BALL_Y_UPPER_BOUND = 76
+    BALL_Y_LOWER_BOUND = 6
        
     def __init__(
         self, 
@@ -168,6 +168,9 @@ class Robot:
                 self.state = States.TRACKING
             
         elif self.state == States.SWINGING:
+            if ball_pos is None or ball_traj is None:
+                return
+            
             # Swinging state - assumes we are at the necessary position to hit ball.
             self.__swing(ball_pos, ball_traj)
             self.state = States.WIND_UP
@@ -189,6 +192,8 @@ class Robot:
         # wait for movement to stop
         while self.arduino_serv.is_moving[self.side]: pass
         self.belt_angle = self.belt_moving_to_angle
+        with self.shared_data.lock:
+            self.shared_data.pos_dict[self.side] = self.__get_position()
         
     def __ball_moving_towards_self(self, ball_dir: list) -> bool:
         """Checks if the ball is currently moving towards the player."""
@@ -276,10 +281,9 @@ class Robot:
         target_belt_angle = self.kinematics.inverse_kinematics(target_x[0], hit_angle)
         self.belt_moving_to_angle = target_belt_angle
         self.arduino_serv.send_angle(target_belt_angle, 100, MessageType.ABSOLUTE, self.side)
-        print(hit_angle)
         
         # swing and hit the ball
-        self.brick_serv.send_data(0, hit_angle, 35, MessageType.ABSOLUTE, self.side)
+        self.brick_serv.send_data(0, hit_angle, 30, MessageType.ABSOLUTE, self.side)
         self.flick_angle = 0
         self.twist_angle = hit_angle
         
