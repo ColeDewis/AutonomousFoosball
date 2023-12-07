@@ -55,7 +55,7 @@ def find_optimal_circle(circles: np.array, prev_pos: np.array = None, img_scale:
         prev_pos (np.array): [x, y] coord of previous ball detection
     
     Returns:
-        list: [x, y] coords of best matched circle
+        list: [x, y, r] coords of best matched circle
     """
     min_dist = np.inf
     for circ in circles: # circ = [x, y, rad]
