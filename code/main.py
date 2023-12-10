@@ -5,7 +5,7 @@ from brick_server import BrickServer
 from arduino_server import ArduinoServer
 from vision.tracker import Tracker
 from trajectory.trajectory import Trajectory
-from shared_data import SharedData
+from utils.shared_data import SharedData
 from utils.side import Side
 
 def run_robot(robot: Robot):

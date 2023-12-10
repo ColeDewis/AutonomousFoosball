@@ -3,7 +3,7 @@ import numpy.typing as nptyping
 from time import perf_counter
 from brick_server import BrickServer
 from arduino_server import ArduinoServer
-from shared_data import SharedData
+from utils.shared_data import SharedData
 from kinematics.kinematics import Kinematics
 from trajectory.trajectory import Trajectory
 from vision.tracker import Tracker
