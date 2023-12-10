@@ -44,7 +44,7 @@ class Robot:
     MAX_NO_DETECTION_THRESHOLD = 3
     
     # Threshold at which point we should swing
-    SHOULD_HIT_THRESHOLD = 10.0 # 12
+    SHOULD_HIT_THRESHOLD = 11.0 # 12
    
     # Thresholds at which the ball is out of bounds
     BALL_Y_UPPER_BOUND = 76

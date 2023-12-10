@@ -9,12 +9,13 @@ from messages.serial_message import serial_message
 from utils.side import Side
 
 class ArduinoServer:
+    """Server class for communicating with arduino clients."""
+    
     RESET_ID = 0
     LEFT_STEPPER_ID = 1
     RIGHT_STEPPER_ID = 2
     STEPS_PER_REVOLUTION = 200
     
-    """Server class for communicating with arduino clients."""
     def __init__(self, port: str, baudrate: int):
         """Initialize an arduino server
 
@@ -53,7 +54,6 @@ class ArduinoServer:
         message = serial_message(stepper_id, speed, target)
         self.arduino.write(message)
         self.is_moving[side] = True
-        #print("wrote to serial: ", message)
     
     def __wait_for_response(self):
         """Asynchronously wait for a "done" response from the stepper."""
@@ -69,16 +69,12 @@ class ArduinoServer:
     def send_reset(self):
         """Send a message telling the arduino to reset ALL motors."""
         message = serial_message(0, 0, 0) 
-        print("wrote to serial: ", message)
         self.arduino.write(message)
 
 if __name__ == "__main__":
+    # Some sample usage / motor testing code
     server = ArduinoServer("COM6", 115200)
     time.sleep(3)
-    #server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
+    server.send_angle(8 * np.pi, 10, MessageType.ABSOLUTE, Side.RIGHT)
     server.send_angle(8 * np.pi, 20, MessageType.ABSOLUTE, Side.LEFT)
-    while True:
-        retmsg = server.arduino.read(1)
-        print(retmsg)
-        print(int.from_bytes(retmsg))
     

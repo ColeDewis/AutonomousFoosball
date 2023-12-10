@@ -131,7 +131,7 @@ class BallTrajectory:
                 else:
                     speed = 100
 
-                self.px_pos_estimate +=  (speed / 20) * time_diff * self.px_dir_estimate
+                self.px_pos_estimate +=  (speed / 10) * time_diff * self.px_dir_estimate
 
             # age the trajectory to ensure we don't get potentially stuck forever
             self.px_positions.pop(0)

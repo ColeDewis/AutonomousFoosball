@@ -104,6 +104,7 @@ class WeightedMovingAverage:
         return np.sum(self.points * weights, axis=0)
 
 if __name__ == "__main__":
+    # Sample test code
     wma = WeightedMovingAverage(ExponentialDecay, 2, 10)
     wma.add_point(np.array([1.0, 1.0]))
     wma.age_points()

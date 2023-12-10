@@ -1,14 +1,13 @@
 import numpy as np
 import numpy.typing as nptyping
 
-# scuffed way of importing from same level package since ".." wouldn't work
+# scuffed way of importing from same level package 
 from pathlib import Path
 import sys
 _parent_dir = Path(__file__).parent.parent.resolve()
 sys.path.insert(0, str(_parent_dir))
 from utils.side import Side
 sys.path.remove(str(_parent_dir))
-
 
 class Kinematics():
     def __init__(self, side: Side):
@@ -17,13 +16,8 @@ class Kinematics():
         Args:
             side (Side): the side that the kinematics is for
         """
-        # belt wheel FULL diameter = 1.6cm. so radius 0.8, but take off a mm and a half.
-        # (because teeth are within radius) - around 6.5mm is an accurate radius.
+        # radius of belt wheel ~6.5mm
         circumference = 1.3 * np.pi
-        
-        # Tension is REALLY important for this belt calc to be accurate.
-        # The constant that converts belt angle to distance - that is,
-        # belt distance d = c * theta_one
         
         # on right, a POSITIVE BELT increases x
         # on left, a POSITIVE BELT decreases x
@@ -32,7 +26,8 @@ class Kinematics():
         elif side == Side.LEFT:
             self.c = -circumference / (2 * np.pi)
         
-        # translation distances from the motor across the joint link
+        # translation distances from the motor across the joint link.
+        # Since these can vary slightly, have separate cases
         if side == Side.RIGHT:
             self.d1 = 8.5
             self.d2 = 3
@@ -40,16 +35,11 @@ class Kinematics():
             self.d1 = 8.5
             self.d2 = 3
             
-        # On right, a POSITIVE TWIST decreases x and y
-        # on left, a POSITIVE TWIST increases x and y
-        # on right, a POSITIVE FLICK decreases y
-        # on left, a POSITIVE FLICK increases y
         # We have to multiply some entries in our homog. matrix by -1 if we are on the left side
         self.i_const = -1 if side == Side.LEFT else 1
         
         # Translations from the world frame (corner) to the flick motor
         # These also define the base frame of the robot.
-        # TODO: update this for both sides to be more accurate
         if side == Side.RIGHT:
             self.tx1, self.ty1, self.tz1 = 5.5, 12, 14.5
         elif side == Side.LEFT:
@@ -77,7 +67,6 @@ class Kinematics():
         # to do this, we use the homogenous transform for only the
         # third transformation. The reason we can use only the third is
         # it is the only one affecting x position when we actually hit the ball.
-        # rotation and translation for 3rd homog. transform
         r3 = np.array(
             [
                 [np.cos(hit_angle), -np.sin(hit_angle), 0, 0],
@@ -107,9 +96,8 @@ class Kinematics():
             ), 
         )[0][0]
         
-        # we know distance = self.tx1 + self.c * theta_one. So, the theta we need
-        # is simply the distance we need / self.c
-        required_belt_theta = ((hit_position + rotation_x_change) - self.tx1) / self.c 
+        # we know x = self.tx1 + rotation_x_change + self.c * theta_one. 
+        required_belt_theta = (hit_position - rotation_x_change - self.tx1) / self.c 
                 
         return required_belt_theta
     
@@ -126,7 +114,8 @@ class Kinematics():
             np.array containing world coordinates of the end effector.
         """
         
-        # rotation and translation for our first homog. transform  
+        # rotation and translation for our first homog. transform 
+        # translates us to center of motor 2 
         r1 = np.array(
             [
                 [1, 0, 0, 0],
@@ -145,11 +134,13 @@ class Kinematics():
         )
         tf1 = np.matmul(r1, t1)
         
-        # rotation and translation for 2nd homog. transform
+        # rotation and translation for 2nd homog. transform.
+        # translates us to center of motor 3
+        # have to take negative of the angle
         r2 = np.array(
             [
                 [1, 0, 0, 0], 
-                [0, np.cos(self.i_const * -theta_two), -np.sin(self.i_const * -theta_two), 0], # have to take negative of the angle
+                [0, np.cos(self.i_const * -theta_two), -np.sin(self.i_const * -theta_two), 0], 
                 [0, np.sin(self.i_const * -theta_two), np.cos(self.i_const * -theta_two), 0], 
                 [0, 0, 0, 1]
             ]
@@ -165,6 +156,7 @@ class Kinematics():
         tf2 = np.matmul(r2, t2)
         
         # rotation and translation for 3rd homog. transform
+        # translates us to the end effector
         r3 = np.array(
             [
                 [np.cos(theta_three), -np.sin(theta_three), 0, 0],
@@ -183,7 +175,7 @@ class Kinematics():
         )
         tf3 = np.matmul(r3, t3)
         
-        # generate full homog. transform and postmultiply by [0; 0; 0; 1]
+        # generate full homog. transform and postmultiply by [0; 0; 0; 1] to get [x; y; z; 1]
         tf = np.matmul(np.matmul(tf1, tf2), tf3)
         return np.matmul(
             tf,
@@ -198,10 +190,10 @@ class Kinematics():
         )     
         
 if __name__ == "__main__":
-    #kin = Kinematics(Side.LEFT)
+    # Example/test code
+    kin = Kinematics(Side.LEFT)
     kin2 = Kinematics(Side.RIGHT)
-    #print(kin.forward_kinematics(0, -np.pi/4, 0))
-    print(np.transpose(kin2.forward_kinematics(0, 0, 0))[0][:2])
-    #print(kin.inverse_kinematics(25.0, np.pi/4))
-    #print(kin2.inverse_kinematics(32.0, -np.pi/4))
-    #print(kin.inverse_kinematics(12.0, 0))
+    print(kin2.forward_kinematics(0, np.pi/3, 0))
+    print(kin.inverse_kinematics(25.0, np.pi/4))
+    print(kin2.inverse_kinematics(32.0, -np.pi/4))
+    print(kin.inverse_kinematics(12.0, 0))

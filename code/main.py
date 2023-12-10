@@ -1,4 +1,4 @@
-import math, time
+import time
 import threading
 from robot import Robot
 from brick_server import BrickServer
@@ -6,7 +6,6 @@ from arduino_server import ArduinoServer
 from vision.tracker import Tracker
 from trajectory.trajectory import Trajectory
 from shared_data import SharedData
-from messages.message_type import MessageType
 from utils.side import Side
 
 def run_robot(robot: Robot):
@@ -15,13 +14,12 @@ def run_robot(robot: Robot):
     Args:
         robot (Robot): robot object to run continuously.
     """
-    last = time.perf_counter()
     while True:
         robot.run()
+        
+        # the sleep is needed so that the thread won't hog all the resources,
+        # otherwise the camera processing is very slow.
         time.sleep(0.1)
-        # if time.perf_counter() - last > 0.1:
-        #     print(f"{robot.side}, {robot.state}")
-        #     last = time.perf_counter()
 
 if __name__ == "__main__":
     right_brick_host = "192.168.137.1"
@@ -36,11 +34,10 @@ if __name__ == "__main__":
     right_robot = Robot(brick_server, arduino_server, tracker, trajectory_planner, shared_data, Side.RIGHT)
     left_robot = Robot(brick_server, arduino_server, tracker, trajectory_planner, shared_data, Side.LEFT)
     
-    # TODO: evaluate thread-safety of brickserver/arduinoserver/tracker
     right_robot_thread = threading.Thread(target=run_robot, args=(right_robot,))
     left_robot_thread = threading.Thread(target=run_robot, args=(left_robot,))
     
-    # Keyboard input is used to start the game
+    # Keyboard input (press enter) is used to start the game
     input()
     right_robot_thread.start()
     left_robot_thread.start()

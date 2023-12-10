@@ -6,11 +6,11 @@
 #define RESET_ID 0
 #define MIN_ALLOWED_STEPS 0
 #define MAX_ALLOWED_STEPS 2100
-#define MAX_SPEED 1300
+#define MAX_SPEED 1000
 
 // Define the stepper motor and the pins that is connected to
-AccelStepper leftStepper(1, 3, 4);   // (STEP PIN=3, DIR PIN=4)
-AccelStepper rightStepper(1, 2, 5);  // (STEP PIN=2, DIR PIN=5)
+AccelStepper leftStepper(1, 3, 4);   // (STEP PIN: 3, DIR PIN: 4)
+AccelStepper rightStepper(1, 2, 5);  // (STEP PIN: 2, DIR PIN: 5)
 int leftCurrentTargetPosition = 0;
 int rightCurrentTargetPosition = 0;
 int leftCurrentSpeed = 0;
@@ -20,14 +20,13 @@ bool rightHasTarget = false;
 bool reset = false;
 
 void setup() {
-  // Set maximum speed value for the stepper
-  // 200 Steps/revolution by default
+  // Stepper is 200 Steps/revolution by default
   leftHasTarget = false;
   rightHasTarget = false;
   leftStepper.setCurrentPosition(0);
-  leftStepper.setMaxSpeed(1000);
+  leftStepper.setMaxSpeed(MAX_SPEED);
   rightStepper.setCurrentPosition(0);
-  rightStepper.setMaxSpeed(1000);
+  rightStepper.setMaxSpeed(MAX_SPEED);
   Serial.begin(115200);
 }
 
@@ -45,7 +44,7 @@ void loop() {
   else if (Serial.available() > 0) 
   {
     // read in a new position if one is sent and we aren't currently moving to a target
-    // read one byte
+    // Read one byte; this will be the motor ID
     int motorId = Serial.read(); 
     if (motorId == RESET_ID) 
     {
@@ -53,8 +52,12 @@ void loop() {
     } 
     else 
     {
+      // Byte 2: direction bit and speed
+      // Bytes 3-4: step target
       char buf[3];
       Serial.readBytes(buf, 3);
+
+      // mask out direction bit and speed
       uint8_t mask = (1 << 7); // mask: 1000 0000
       int sign = (buf[0] & mask) > 0; 
       uint8_t speed = (buf[0] & (~mask)); // ~mask: - 0111 1111
@@ -104,7 +107,7 @@ void loop() {
     rightStepper.moveTo(rightCurrentTargetPosition);
     rightStepper.setSpeed(rightCurrentSpeed);
     rightStepper.runSpeedToPosition();
-    //Serial.write(rightStepper.currentPosition());
+
     // once we are at the target position, stop moving
     if (rightStepper.currentPosition() == rightCurrentTargetPosition) {
       rightHasTarget = false;

@@ -1,1 +1,1 @@
-# CMPUT312-Project
+# Autonomous Foosball
