@@ -14,12 +14,13 @@ def serial_message(motor_id: int, speed: int, target: int) -> bytearray:
     # byte 3/4 - target position in steps
     packet = bytearray()
     packet.append(motor_id)
+    
     speed_sign_byte = 0
     if target < 0:
         speed_sign_byte |= (1 << 7)
     speed_sign_byte |= speed
     packet.append(speed_sign_byte)
-    if target > 2100: target = 2100
+    
     targetbytes = (abs(target)).to_bytes(2)
     packet += targetbytes
     return packet

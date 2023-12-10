@@ -1,9 +1,4 @@
-#!/usr/bin/python
-
-"""NOTE: this code is based on given code from eClass, modified for our purposes."""
-
 import socket
-from queue import Queue
 from messages.brick_message import brick_message
 from utils.side import Side
 
@@ -48,7 +43,6 @@ class BrickServer:
             side (Side): side to send the message to
         """
         data = brick_message(flick, twist, speed, type)
-        #print(f"Sending Data: ({data}) to brick.")
         self.conn_dict[side].send(data)
         # Waiting for the client (ev3 brick) to let the server know that it is done moving
         self.conn_dict[side].recv(128).decode("UTF-8")

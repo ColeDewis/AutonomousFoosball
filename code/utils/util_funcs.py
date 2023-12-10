@@ -16,6 +16,6 @@ def rad2deg(angle: float):
 def debug_print(*args, **kwargs):
     """Print debug messages to stderr.
 
-    This shows up in the output panel in VS Code.
+    This shows up in the output panel in VS Code when used on the EV3 Brick.
     """
     print(*args, **kwargs, file=sys.stderr)

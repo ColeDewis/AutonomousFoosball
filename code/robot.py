@@ -3,7 +3,7 @@ import numpy.typing as nptyping
 from time import perf_counter
 from brick_server import BrickServer
 from arduino_server import ArduinoServer
-from shared_data import SharedData
+from utils.shared_data import SharedData
 from kinematics.kinematics import Kinematics
 from trajectory.trajectory import Trajectory
 from vision.tracker import Tracker
@@ -44,7 +44,7 @@ class Robot:
     MAX_NO_DETECTION_THRESHOLD = 3
     
     # Threshold at which point we should swing
-    SHOULD_HIT_THRESHOLD = 10.0 # 12
+    SHOULD_HIT_THRESHOLD = 11.0 # 12
    
     # Thresholds at which the ball is out of bounds
     BALL_Y_UPPER_BOUND = 76
