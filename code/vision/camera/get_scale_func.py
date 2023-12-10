@@ -6,73 +6,22 @@ from sklearn import linear_model
 import glob
 import re
 
-from transforms import (
-    BALL_RADIUS_PX,
+# from pathlib import Path
+# import sys
+# _parent_dir = Path(__file__).parents[2].resolve()
+# sys.path.insert(0, str(_parent_dir))
+# from vision.detect import detect_circles, find_optimal_circle
+# sys.path.remove(str(_parent_dir))
+from src.vision.detect import detect_circles, find_optimal_circle
+from src.vision.camera.transforms import (
     INTRINSIC,
     INTRINSIC_INV,
     DIST_COEF,
-    image_to_world,
-    world_to_image
 )
-
-RED_LOW_MASK = (155, 145, 0)
-RED_HIGH_MASK = (179, 255, 255)
 
 ###############################################################################
 ######################### Helper Functionality ###############################
 ###############################################################################
-
-def detect_circles(hsv: np.array) -> list | None:
-    """uses hsv color space masking and basic image processing to find
-    circles in the image
-    
-    Args:
-        hsv (np.array): blurred image in hsv-color space for color detection
-
-    Returns:
-        None: no ball detected
-        list: list of [x, y, radius] coord of any detected circles
-    """
-    # mask based on red color and then use morph operations to clean mask
-    kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE,(7,5))
-    mask = cv.inRange(hsv, RED_LOW_MASK, RED_HIGH_MASK)
-    mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
-
-    circles = cv.HoughCircles(mask, cv.HOUGH_GRADIENT, 1.5, 300, param1=100, param2=20, minRadius=10, maxRadius=50)
-    if circles is not None:
-        circles = np.squeeze(circles)
-        if circles.ndim == 1:
-            circles = [list(circles)]
-
-    return circles
-
-def find_optimal_circle(circles: np.array, prev_pos: np.array = None, img_scale: int = 2) -> list:
-    """finds the closest matched circle in case multiple are detected
-    
-    Args:
-        circles (np.array): array of all detected circles
-        prev_pos (np.array): [x, y] coord of previous ball detection
-    
-    Returns:
-        list: [x, y] coords of best matched circle
-    """
-    min_dist = np.inf
-    for circ in circles: # circ = [x, y, rad]
-        if prev_pos is None:
-            # no detection to match so far, pick one with closest radius
-            diff = abs(circ[2] - BALL_RADIUS_PX / img_scale)
-            if diff < min_dist:
-                min_dist = diff
-                best = circ
-        else:
-            # we have previous detections, find best match according to
-            # distance from previous point (since likely very close still)
-            dist = np.sum(np.square(circ[:2] - prev_pos))
-            if dist < min_dist:
-                min_dist = dist
-                best = circ
-
-    return list(best)
 
 def tryint(s):
     try:
@@ -97,6 +46,7 @@ def sort_nicely(l):
 ###############################################################################
 
 # the balls were propped up in each of the images by a fix amount due to container
+# so z is a little larger than actual
 true_world_coords = np.array([
         [43.4, 5.8, 6.2],
         [43.4, 38.7, 6.2],
@@ -124,7 +74,6 @@ images = sort_nicely(list(glob.glob(str(img_path) + '/*.png')))
 img_coords = []
 for i, fname in enumerate(images):
     frame = cv.imread(fname)
-    # blurred = cv.GaussianBlur(frame, (5, 5), 0)
     blurred = cv.edgePreservingFilter(frame, cv.RECURS_FILTER, 40, 0.4)
     hsv = cv.cvtColor(blurred, cv.COLOR_BGR2HSV)
 
@@ -136,27 +85,11 @@ for i, fname in enumerate(images):
         cv.imshow("circle", frame)
         cv.waitKey(0)
 
-############################################################################
-###################### Get Measured Extrinsic Error ########################
-############################################################################
-
-for_error = np.transpose(np.array([0., 0.]))
-inv_error = np.transpose(np.array([0., 0.]))
-for i, img_coord in enumerate(img_coords):
-    img_est = world_to_image(*np.squeeze(true_world_coords[i]))
-    for_error += np.abs(img_coord - np.array(img_est))
-    world_est = image_to_world(*img_coord, true_world_coords[i][2])
-    inv_error += np.abs(true_world_coords[i][:2] - np.array(world_est))
-
-print(f"Average Forward Error: {for_error / true_world_coords.shape[0]}")
-print(f"Average Inverse Error: {inv_error / true_world_coords.shape[0]}")
-
-
-###############################################################################
+#############################################################################
 ################### Solve for extrinsic matrix ##############################
-###############################################################################
+#############################################################################
 
-print("solvePNP")
+print("solve PnP")
 ret, rvec1, tvec1 = cv.solvePnP(true_world_coords, np.array(img_coords), INTRINSIC, DIST_COEF)
 R_mtx, jac = cv.Rodrigues(rvec1)
 Rt = np.column_stack((R_mtx,tvec1))

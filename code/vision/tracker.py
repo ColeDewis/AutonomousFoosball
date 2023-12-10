@@ -1,12 +1,15 @@
 import cv2 as cv
-import numpy as np
 import os
 import threading
 import time
-if __name__ == "__main__":
-    from ball_trajectory import BallTrajectory
-else:   
-    from vision.ball_trajectory import BallTrajectory
+
+# from pathlib import Path
+# import sys
+# _parent_dir = Path(__file__).parent.parent.resolve()
+# sys.path.insert(0, str(_parent_dir))
+# from vision.ball_trajectory import BallTrajectory
+# sys.path.remove(str(_parent_dir))
+from src.vision.ball_trajectory import BallTrajectory
 
 class Tracker:
     """class for handling object detection and tracking functionality"""
@@ -84,7 +87,7 @@ class Tracker:
             # converting coordinates back to original size but whatever
             resized_frame = cv.resize(frame, resized_res, interpolation=cv.INTER_AREA)
             self.ball_trajectory.step(resized_frame)
-            self.__draw_ball_information(frame)
+            self.ball_trajectory.draw_info(frame)
             cv.imshow(window_name, frame)
             
             # check if q key is pressed
@@ -111,30 +114,6 @@ class Tracker:
         self.vc.release()
         cv.destroyAllWindows()
         print("Tracking Complete")
-
-    def __draw_ball_information(self, frame: np.array):
-        """helper for drawing the trajectory line and points on the window"""
-        # draw previous circle detection
-        if self.ball_trajectory.detected_circ is not None:
-            scaled_circ = (self.ball_trajectory.detected_circ * self.img_scale).astype(int)
-            cv.circle(frame, scaled_circ[:2], scaled_circ[2], (255, 0, 0), 2)
-
-        # draw previous true points
-        for pos in self.ball_trajectory.px_positions:
-            scaled_pos = pos * self.img_scale
-            cv.circle(frame, scaled_pos.astype(int), 3, (255, 0, 0), 2)
-
-        # draw position estimate
-        if self.ball_trajectory.px_pos_estimate is not None:
-            scaled_pos_est = self.ball_trajectory.px_pos_estimate * self.img_scale
-            cv.circle(frame, scaled_pos_est.astype(int), 3, (0, 255, 0), 2)
-
-        # draw direction vector
-        if self.ball_trajectory.px_dir_estimate is not None:
-            scaled_dir_est = self.ball_trajectory.px_dir_estimate * self.img_scale
-            start_pt = (scaled_pos_est - 75 * scaled_dir_est).astype(int)
-            end_pt = (scaled_pos_est + 75 * scaled_dir_est).astype(int)
-            cv.arrowedLine(frame, start_pt, end_pt, (255,0,0), 2)
 
 if __name__ == "__main__":
     # for testing

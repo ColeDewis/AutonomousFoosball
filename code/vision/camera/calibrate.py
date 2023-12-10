@@ -7,7 +7,7 @@ from pathlib import Path
 file_path = Path(__file__)
 img_path = file_path.parent / "images/"
 
-# may have printed off a non-square chessboard
+# may have printed off a non-square chessboard (oopsy)
 SQR_LEN = 2.7 # cm
 SQR_HEIGHT = 2.5 # cm
 CB_SIZE = (9, 7) # how many corners to look for (where black square corners meet)
@@ -57,4 +57,4 @@ for i in range(len(objpoints)):
     imgpoints2, _ = cv.projectPoints(objpoints[i], rvecs[i], tvecs[i], mtx, dist)
     error = cv.norm(imgpoints[i], imgpoints2, cv.NORM_L2)/len(imgpoints2)
     mean_error += error
-print( "total error: {}".format(mean_error/len(objpoints)))
+print( "total reprojection error: {}".format(mean_error/len(objpoints)))

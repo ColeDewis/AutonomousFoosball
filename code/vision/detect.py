@@ -2,12 +2,14 @@
 
 import cv2 as cv
 import numpy as np
-import os
 
-if __name__ == "__main__":
-    from camera.transforms import BALL_RADIUS_PX
-else:
-    from vision.camera.transforms import BALL_RADIUS_PX
+# from pathlib import Path
+# import sys
+# _parent_dir = Path(__file__).parent.parent.resolve()
+# sys.path.insert(0, str(_parent_dir))
+# from vision.camera.transforms import BALL_RADIUS_PX
+# sys.path.remove(str(_parent_dir))
+from src.vision.camera.transforms import BALL_RADIUS_PX
 
 #####HSV Colour Ranges#################
 # Blue Player Range
@@ -39,7 +41,16 @@ def detect_circles(hsv: np.array) -> list | None:
     mask = cv.inRange(hsv, RED_LOW_MASK, RED_HIGH_MASK)
     mask = cv.morphologyEx(mask, cv.MORPH_OPEN, kernel, iterations=3)
 
-    circles = cv.HoughCircles(mask, cv.HOUGH_GRADIENT, 1.5, 300, param1=100, param2=20, minRadius=10, maxRadius=50)
+    circles = cv.HoughCircles(
+                                mask,
+                                cv.HOUGH_GRADIENT,
+                                1.5,
+                                300,
+                                param1=100,
+                                param2=20,
+                                minRadius=10,
+                                maxRadius=50
+                            )
     if circles is not None:
         circles = np.squeeze(circles)
         if circles.ndim == 1:
@@ -102,6 +113,7 @@ def detect_rectangles(hsv: np.array) -> list | None:
 
 if __name__ == "__main__":
     ######################### testing ##########################
+    import os
     img_w, img_h = 1280, 720
     cam_index = 2
     if os.name == "nt":
