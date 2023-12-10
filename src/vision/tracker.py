@@ -3,12 +3,6 @@ import os
 import threading
 import time
 
-# from pathlib import Path
-# import sys
-# _parent_dir = Path(__file__).parent.parent.resolve()
-# sys.path.insert(0, str(_parent_dir))
-# from vision.ball_trajectory import BallTrajectory
-# sys.path.remove(str(_parent_dir))
 from src.vision.ball_trajectory import BallTrajectory
 
 class Tracker:

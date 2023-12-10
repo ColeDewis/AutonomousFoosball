@@ -1,7 +1,4 @@
-if __name__ == "__main__":
-    from message_type import MessageType
-else:
-    from messages.message_type import MessageType
+from src.messages.message_type import MessageType
 
 def brick_message(flick_angle: float, twist_angle: float, speed: int, m_type: MessageType) -> str:
     """Gets the brick message for the given data.

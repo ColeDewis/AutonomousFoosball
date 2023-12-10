@@ -22,12 +22,12 @@ def run_robot(robot: Robot):
         time.sleep(0.1)
 
 if __name__ == "__main__":
+    tracker = Tracker(0, img_scale=2)
     right_brick_host = "192.168.137.1"
     left_brick_host = "169.254.24.231"
     port = 9999
     brick_server = BrickServer(left_brick_host, right_brick_host, port)
     arduino_server = ArduinoServer("COM6", 115200)
-    tracker = Tracker(0, img_scale=2)
     trajectory_planner = Trajectory()
     shared_data = SharedData()
     

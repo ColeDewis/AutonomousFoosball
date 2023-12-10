@@ -6,12 +6,6 @@ from sklearn import linear_model
 import glob
 import re
 
-# from pathlib import Path
-# import sys
-# _parent_dir = Path(__file__).parents[2].resolve()
-# sys.path.insert(0, str(_parent_dir))
-# from vision.detect import detect_circles, find_optimal_circle
-# sys.path.remove(str(_parent_dir))
 from src.vision.detect import detect_circles, find_optimal_circle
 from src.vision.camera.transforms import (
     INTRINSIC,

@@ -1,13 +1,7 @@
 import numpy as np
 import numpy.typing as nptyping
 
-# scuffed way of importing from same level package 
-from pathlib import Path
-import sys
-_parent_dir = Path(__file__).parent.parent.resolve()
-sys.path.insert(0, str(_parent_dir))
-from utils.side import Side
-sys.path.remove(str(_parent_dir))
+from src.utils.side import Side
 
 class Kinematics():
     def __init__(self, side: Side):

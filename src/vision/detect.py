@@ -3,12 +3,6 @@
 import cv2 as cv
 import numpy as np
 
-# from pathlib import Path
-# import sys
-# _parent_dir = Path(__file__).parent.parent.resolve()
-# sys.path.insert(0, str(_parent_dir))
-# from vision.camera.transforms import BALL_RADIUS_PX
-# sys.path.remove(str(_parent_dir))
 from src.vision.camera.transforms import BALL_RADIUS_PX
 
 #####HSV Colour Ranges#################

@@ -2,16 +2,6 @@ import time
 import cv2 as cv
 import numpy as np
 
-# from pathlib import Path
-# import sys
-# _parent_dir = Path(__file__).parent.parent.resolve()
-# sys.path.insert(0, str(_parent_dir))
-# from vision.camera.transforms import image_to_world, AVG_PX2CM
-# from vision.detect import detect_circles, find_optimal_circle
-# from vision.point_projection import closest_point
-# from utils.decay_functions import ExponentialDecay
-# from utils.weighted_moving_average import WeightedMovingAverage
-# sys.path.remove(str(_parent_dir))
 from src.vision.camera.transforms import image_to_world, AVG_PX2CM
 from src.vision.detect import detect_circles, find_optimal_circle
 from src.vision.point_projection import closest_point
@@ -160,7 +150,11 @@ class BallTrajectory:
         self.__update_trajectory()
 
     def draw_info(self, frame: np.array):
-        """helper for drawing the trajectory line and points on the window"""
+        """helper for drawing the trajectory line and points on the window
+        
+        Args:
+            frame (np.array): the unscaled (regular sized) frame to draw on
+        """
         # draw previous circle detection
         if self._detected_circ is not None:
             scaled_circ = (self._detected_circ * self._img_scale).astype(int)
