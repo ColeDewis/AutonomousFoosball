@@ -21,7 +21,7 @@ class BallTrajectory:
         abrupt_change (bool): flag signalling the ball had an abrupt change in direction
         position (list | None): [x, y] world coordinates of ball position estimate
         direction (list | None): [dx, dy] world coordinates of ball direction estimate
-        speed (list | None): [v_x, v_y] velocities in x and y direction of ball in world coords
+        speed (float | None):  speed of ball in cm/s
 
     Methods:
         step(resized_frame: np.array): steps the trajectory forward in time, computing new ball information
@@ -51,7 +51,7 @@ class BallTrajectory:
         self._px_pos_estimate = None
         self._px_dir_estimate = None
 
-        # for getting instantaneous speed in pixel/s
+        # for getting speed in pixel/s
         self._prev_time = time.perf_counter()
         self._px_speed = WeightedMovingAverage(ExponentialDecay, 1, self._capacity)
 
@@ -93,10 +93,10 @@ class BallTrajectory:
 
     @property
     def speed(self) -> float | None:
-        """Computes the instantaneous speed of the ball in cm/s
+        """Computes the speed of the ball in cm/s
         
         Returns:
-            list: [v_x, v_y] velocity in each direction in cm/s
+            float: speed of ball in cm/s
         """
         if self._px_speed.output() is not None:
             return self._px_speed.output()[0] * AVG_PX2CM # avg for now
