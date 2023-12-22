@@ -26,6 +26,8 @@ Arshia: Ball Trajectory Analysis. (`\trajectory`)
 A video demo of our project can be seen [here.](https://drive.google.com/file/d/1JVUitq1qnXPh7LTEeeYDJyjFxKlvqjnj/view?usp=sharing)
 
 ## Gallery
-
-TODO: add images to repo
+![full overhead view](img/overhead.HEIC) 
+![carriages](img/carriages.HEIC)
+![carriage on rail](img/carriage_on_bars.HEIC)
+![one side view](img/one_side.jpg) 
 More pictures can be found [here](https://drive.google.com/drive/folders/1K-71b0g8dWt_dnDoy4_n6FW7R2CDCx8E?usp=sharing) if you are interested.
